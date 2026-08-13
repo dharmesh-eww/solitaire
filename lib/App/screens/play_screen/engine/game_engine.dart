@@ -1,0 +1,344 @@
+import '../../../core/puzzle/puzzle_data.dart';
+import '../../../core/puzzle/puzzle_generator.dart';
+import '../model/card_location.dart';
+import '../model/game_state.dart';
+
+enum GameActionResult { success, invalid, noMovesLeft, gameOver }
+
+class GameEngine {
+  GameEngine(this.state);
+
+  final GameState state;
+
+  PuzzleData get puzzle => state.puzzle;
+
+  bool get isInteractive => state.status == GameStatus.playing;
+
+  bool isFaceUp(String cardId) => !state.faceDownIds.contains(cardId);
+
+  bool isPlayable(String cardId) {
+    if (!isInteractive) return false;
+    final card = puzzle.cardById(cardId);
+    if (card == null || card.isCategoryHeader) return false;
+    if (!isFaceUp(cardId)) return false;
+
+    final location = locateCard(cardId);
+    if (location == null) return false;
+
+    switch (location.zone) {
+      case CardZone.waste:
+        return state.waste.isNotEmpty && state.waste.last == cardId;
+      case CardZone.stock:
+        return false;
+      case CardZone.tableau:
+        final column = state.columns[location.columnIndex!];
+        return column.isNotEmpty && column.last == cardId;
+    }
+  }
+
+  CardLocation? locateCard(String cardId) {
+    if (state.waste.contains(cardId)) {
+      return const CardLocation(zone: CardZone.waste);
+    }
+    if (state.stock.contains(cardId)) {
+      return const CardLocation(zone: CardZone.stock);
+    }
+    for (var i = 0; i < state.columns.length; i++) {
+      if (state.columns[i].contains(cardId)) {
+        return CardLocation(zone: CardZone.tableau, columnIndex: i);
+      }
+    }
+    return null;
+  }
+
+  int columnIndexForCategory(String categoryId) {
+    return puzzle.initialLayout.categoryColumnIds.indexOf(categoryId);
+  }
+
+  String? categoryIdForColumn(int columnIndex) {
+    if (columnIndex < 0 ||
+        columnIndex >= puzzle.initialLayout.categoryColumnIds.length) {
+      return null;
+    }
+    return puzzle.initialLayout.categoryColumnIds[columnIndex];
+  }
+
+  bool isCategoryCompleted(String categoryId) {
+    return state.completedCategories.contains(categoryId);
+  }
+
+  int categoryRequiredCount(String categoryId) {
+    return puzzle.categoryById(categoryId)?.requiredItemCount ?? 0;
+  }
+
+  int categoryPlacedCount(String categoryId) {
+    return state.categoryProgress[categoryId] ?? 0;
+  }
+
+  bool canDropOnCategory(String cardId, String categoryId) {
+    if (!isPlayable(cardId)) return false;
+    if (isCategoryCompleted(categoryId)) return false;
+
+    final card = puzzle.cardById(cardId);
+    if (card == null || card.isDistractor) return false;
+
+    return card.categoryId == categoryId;
+  }
+
+  void selectCard(String? cardId) {
+    if (!isInteractive) return;
+    state.hintCardId = null;
+    state.hintCategoryId = null;
+    if (cardId != null && !isPlayable(cardId)) return;
+    state.selectedCardId = cardId;
+  }
+
+  GameActionResult tapCategory(int columnIndex) {
+    final selected = state.selectedCardId;
+    if (selected == null) return GameActionResult.invalid;
+    return moveCardToCategory(selected, columnIndex, consumeMove: true);
+  }
+
+  GameActionResult moveCardToCategory(
+    String cardId,
+    int columnIndex, {
+    required bool consumeMove,
+  }) {
+    if (!isInteractive) return GameActionResult.gameOver;
+    if (state.movesRemaining <= 0 && consumeMove) {
+      state.status = GameStatus.outOfMoves;
+      return GameActionResult.noMovesLeft;
+    }
+
+    final categoryId = categoryIdForColumn(columnIndex);
+    if (categoryId == null || !canDropOnCategory(cardId, categoryId)) {
+      return GameActionResult.invalid;
+    }
+
+    _pushUndoSnapshot();
+
+    final removed = _removeCard(cardId);
+    if (!removed) {
+      state.undoHistory.removeLast();
+      return GameActionResult.invalid;
+    }
+
+    state.columns[columnIndex].add(cardId);
+    state.categoryProgress[categoryId] =
+        (state.categoryProgress[categoryId] ?? 0) + 1;
+
+    if (categoryPlacedCount(categoryId) >= categoryRequiredCount(categoryId)) {
+      state.completedCategories.add(categoryId);
+    }
+
+    state.selectedCardId = null;
+    state.hintCardId = null;
+    state.hintCategoryId = null;
+    _updateActiveCategory();
+
+    if (consumeMove) {
+      state.movesRemaining--;
+      if (state.movesRemaining <= 0 && !_isWin()) {
+        state.status = GameStatus.outOfMoves;
+      }
+    }
+
+    if (_isWin()) {
+      state.status = GameStatus.won;
+    }
+
+    return GameActionResult.success;
+  }
+
+  GameActionResult drawFromStock() {
+    if (!isInteractive) return GameActionResult.gameOver;
+    if (state.movesRemaining <= 0) {
+      state.status = GameStatus.outOfMoves;
+      return GameActionResult.noMovesLeft;
+    }
+    if (state.stock.isEmpty) return GameActionResult.invalid;
+
+    _pushUndoSnapshot();
+    final cardId = state.stock.removeLast();
+    state.faceDownIds.remove(cardId);
+    state.waste.add(cardId);
+    state.movesRemaining--;
+    state.selectedCardId = null;
+    state.hintCardId = null;
+    state.hintCategoryId = null;
+
+    if (state.movesRemaining <= 0 && !_isWin()) {
+      state.status = GameStatus.outOfMoves;
+    }
+
+    return GameActionResult.success;
+  }
+
+  GameActionResult useHint() {
+    if (!isInteractive) return GameActionResult.gameOver;
+    if (state.hintsRemaining <= 0) return GameActionResult.invalid;
+
+    final hint = _findHintMove();
+    if (hint == null) return GameActionResult.invalid;
+
+    state.hintsRemaining--;
+    state.hintCardId = hint.cardId;
+    state.hintCategoryId = hint.categoryId;
+    state.activeCategoryId = hint.categoryId;
+    state.selectedCardId = hint.cardId;
+    return GameActionResult.success;
+  }
+
+  GameActionResult undo() {
+    if (!isInteractive && state.status != GameStatus.outOfMoves) {
+      return GameActionResult.gameOver;
+    }
+    if (state.undoRemaining <= 0 || state.undoHistory.isEmpty) {
+      return GameActionResult.invalid;
+    }
+
+    final snapshot = state.undoHistory.removeLast();
+    state.restore(snapshot);
+    state.undoRemaining--;
+    if (state.status == GameStatus.outOfMoves && state.movesRemaining > 0) {
+      state.status = GameStatus.playing;
+    }
+    return GameActionResult.success;
+  }
+
+  GameActionResult shuffleTableau() {
+    if (!isInteractive) return GameActionResult.gameOver;
+    if (state.shufflesRemaining <= 0) return GameActionResult.invalid;
+
+    _pushUndoSnapshot();
+
+    final movableCards = <String>[];
+    final slots = <({int column, int index})>[];
+
+    for (var col = 0; col < state.columns.length; col++) {
+      final column = state.columns[col];
+      for (var i = 1; i < column.length; i++) {
+        final cardId = column[i];
+        if (isFaceUp(cardId) && isPlayable(cardId)) {
+          movableCards.add(cardId);
+          slots.add((column: col, index: i));
+        }
+      }
+    }
+
+    if (movableCards.length < 2) {
+      state.undoHistory.removeLast();
+      return GameActionResult.invalid;
+    }
+
+    movableCards.shuffle();
+    for (var i = 0; i < slots.length; i++) {
+      final slot = slots[i];
+      state.columns[slot.column][slot.index] = movableCards[i];
+    }
+
+    state.shufflesRemaining--;
+    state.selectedCardId = null;
+    state.hintCardId = null;
+    state.hintCategoryId = null;
+    return GameActionResult.success;
+  }
+
+  void retryLevel() {
+    final fresh = GameState.fromPuzzle(state.puzzle);
+    state
+      ..columns = fresh.columns
+      ..stock = fresh.stock
+      ..waste = fresh.waste
+      ..faceDownIds = fresh.faceDownIds
+      ..categoryProgress = fresh.categoryProgress
+      ..completedCategories = fresh.completedCategories
+      ..movesRemaining = fresh.movesRemaining
+      ..hintsRemaining = fresh.hintsRemaining
+      ..undoRemaining = fresh.undoRemaining
+      ..shufflesRemaining = fresh.shufflesRemaining
+      ..selectedCardId = null
+      ..activeCategoryId = fresh.activeCategoryId
+      ..hintCardId = null
+      ..hintCategoryId = null
+      ..status = GameStatus.playing
+      ..undoHistory.clear();
+  }
+
+  static GameEngine forPuzzle(PuzzleData puzzle) {
+    return GameEngine(GameState.fromPuzzle(puzzle));
+  }
+
+  static GameEngine forLevel(int level) {
+    final puzzle = PuzzleGenerator.instance.generate(level: level);
+    return GameEngine(GameState.fromPuzzle(puzzle));
+  }
+
+  bool _isWin() {
+    return state.completedCategories.length == puzzle.categories.length;
+  }
+
+  void _updateActiveCategory() {
+    for (final category in puzzle.categories) {
+      if (!state.completedCategories.contains(category.id)) {
+        state.activeCategoryId = category.id;
+        return;
+      }
+    }
+    state.activeCategoryId = null;
+  }
+
+  bool _removeCard(String cardId) {
+    if (state.waste.contains(cardId)) {
+      state.waste.remove(cardId);
+      return true;
+    }
+
+    for (var col = 0; col < state.columns.length; col++) {
+      final column = state.columns[col];
+      final index = column.indexOf(cardId);
+      if (index != -1) {
+        column.removeAt(index);
+        if (index > 0) {
+          final revealedId = column[index - 1];
+          state.faceDownIds.remove(revealedId);
+        }
+        return true;
+      }
+    }
+    return false;
+  }
+
+  void _pushUndoSnapshot() {
+    state.undoHistory.add(state.capture());
+    if (state.undoHistory.length > 30) {
+      state.undoHistory.removeAt(0);
+    }
+  }
+
+  _HintMove? _findHintMove() {
+    final candidates = <String>[
+      if (state.waste.isNotEmpty && isPlayable(state.waste.last))
+        state.waste.last,
+      for (var col = 0; col < state.columns.length; col++)
+        if (state.columns[col].length > 1) state.columns[col].last else '',
+    ].where((id) => id.isNotEmpty && isPlayable(id));
+
+    for (final cardId in candidates) {
+      final card = puzzle.cardById(cardId);
+      if (card == null || card.isDistractor) continue;
+      if (isCategoryCompleted(card.categoryId)) continue;
+      final columnIndex = columnIndexForCategory(card.categoryId);
+      if (columnIndex >= 0) {
+        return _HintMove(cardId: cardId, categoryId: card.categoryId);
+      }
+    }
+    return null;
+  }
+}
+
+class _HintMove {
+  const _HintMove({required this.cardId, required this.categoryId});
+  final String cardId;
+  final String categoryId;
+}
