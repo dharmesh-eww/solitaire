@@ -22,58 +22,64 @@ class PlayScreen extends StatekitView<PlayScreenController>
         controller: controller,
         builder: (context, controller, child) {
           return GameTableBackground(
-            child: SafeArea(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final width = constraints.maxWidth;
-                  final columnGap = width < 380 ? 8.0 : 12.0;
-                  final horizontalPadding = width < 380 ? 12.0 : 18.0;
-                  final cardWidth =
-                      (width - horizontalPadding * 2 - columnGap * 3) / 4;
-                  final clampedCardWidth = cardWidth.clamp(72.0, 104.0);
+            child: Stack(
+              children: [
+                SafeArea(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final width = constraints.maxWidth;
+                      final columnGap = width < 380 ? 8.0 : 12.0;
+                      final horizontalPadding = width < 380 ? 12.0 : 18.0;
+                      final cardWidth =
+                          (width - horizontalPadding * 2 - columnGap * 3) / 4;
+                      final clampedCardWidth = cardWidth.clamp(72.0, 104.0);
 
-                  return Stack(
-                    children: [
-                      Column(
+                      return Stack(
                         children: [
-                          GameHeader(
-                            level: controller.level,
-                            hintCount: controller.state.hintsRemaining,
-                            undoCount: controller.state.undoRemaining,
-                            onPause: () => Navigator.maybePop(context),
-                            onHint: controller.useHint,
-                            onUndo: controller.undo,
-                            onMenu: controller.retryLevel,
+                          Column(
+                            children: [
+                              GameHeader(
+                                level: controller.level,
+                                hintCount: controller.state.hintsRemaining,
+                                undoCount: controller.state.undoRemaining,
+                                onPause: () => Navigator.maybePop(context),
+                                onHint: controller.useHint,
+                                onUndo: controller.undo,
+                                onMenu: controller.retryLevel,
+                              ),
+                              Expanded(
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: horizontalPadding,
+                                  ),
+                                  child: _PlayBoard(
+                                    controller: controller,
+                                    cardWidth: clampedCardWidth,
+                                    columnGap: columnGap,
+                                  ),
+                                ),
+                              ),
+                              _InstructionBar(controller: controller),
+                              _BottomControls(controller: controller),
+                            ],
                           ),
-                          Expanded(
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: horizontalPadding,
-                              ),
-                              child: _PlayBoard(
-                                controller: controller,
-                                cardWidth: clampedCardWidth,
-                                columnGap: columnGap,
-                              ),
+                          Positioned(
+                            left: 12,
+                            top: 92,
+                            child: MovesRibbon(
+                              moves: controller.state.movesRemaining,
                             ),
                           ),
-                          _InstructionBar(controller: controller),
-                          _BottomControls(controller: controller),
+                          if (controller.state.status != GameStatus.playing)
+                            _StatusOverlay(controller: controller),
                         ],
-                      ),
-                      Positioned(
-                        left: 12,
-                        top: 92,
-                        child: MovesRibbon(
-                          moves: controller.state.movesRemaining,
-                        ),
-                      ),
-                      if (controller.state.status != GameStatus.playing)
-                        _StatusOverlay(controller: controller),
-                    ],
-                  );
-                },
-              ),
+                      );
+                    },
+                  ),
+                ),
+                if (controller.animatingCard != null)
+                  _AnimationOverlay(controller: controller),
+              ],
             ),
           );
         },
@@ -150,11 +156,13 @@ class _CategoryColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final columnKey = controller.columnKeys.putIfAbsent(columnIndex, () => GlobalKey());
     final state = controller.state;
     final category = state.puzzle.categories[columnIndex];
     final column = state.columns[columnIndex];
     final cardHeight = cardWidth * 1.38;
     final stackStep = cardHeight * 0.25;
+    
     final playableSelected =
         state.selectedCardId != null &&
         controller.canDropOnCategory(state.selectedCardId!, columnIndex);
@@ -163,80 +171,195 @@ class _CategoryColumn extends StatelessWidget {
         state.hintCategoryId == category.id ||
         playableSelected;
 
+    final isDraggingCard = controller.draggingCardId != null;
+    final isValidDestination = isDraggingCard &&
+        controller.canDropOnColumn(controller.draggingCardId!, columnIndex);
+
     return DragTarget<String>(
+      key: columnKey,
       onWillAcceptWithDetails: (details) {
-        return controller.canDropOnCategory(details.data, columnIndex);
+        return controller.canDropOnColumn(details.data, columnIndex);
       },
       onAcceptWithDetails: (details) {
-        controller.moveCardToCategory(details.data, columnIndex);
+        controller.onCardDropped(details.data, columnIndex, details.offset);
       },
       builder: (context, candidateData, rejectedData) {
-        final glowing = active || candidateData.isNotEmpty;
+        final isHovering = candidateData.isNotEmpty;
+        final isInvalidHover = isHovering && !isValidDestination;
+        final isEmptyStack = column.length <= 1;
+        final glowing = active || isHovering;
+
+        BoxBorder borderStyle;
+        List<BoxShadow>? boxShadows;
+
+        if (isValidDestination) {
+          if (isHovering) {
+            if (isEmptyStack) {
+              borderStyle = Border.all(color: const Color(0xFFFFD700), width: 2.0);
+              boxShadows = [
+                BoxShadow(
+                  color: const Color(0xFFFFD700).withValues(alpha: 0.4),
+                  blurRadius: 16,
+                  spreadRadius: 2,
+                )
+              ];
+            } else {
+              borderStyle = Border.all(color: const Color(0xFF4CAF50), width: 2.0);
+              boxShadows = [
+                BoxShadow(
+                  color: const Color(0xFF4CAF50).withValues(alpha: 0.4),
+                  blurRadius: 16,
+                  spreadRadius: 2,
+                )
+              ];
+            }
+          } else {
+            borderStyle = Border.all(
+              color: const Color(0xFFFFD700).withValues(alpha: 0.4),
+              width: 1.5,
+            );
+            boxShadows = [
+              BoxShadow(
+                color: const Color(0xFFFFD700).withValues(alpha: 0.15),
+                blurRadius: 8,
+              )
+            ];
+          }
+        } else if (isInvalidHover) {
+          borderStyle = Border.all(
+            color: Colors.red.withValues(alpha: 0.3),
+            width: 1.5,
+          );
+          boxShadows = null;
+        } else {
+          borderStyle = Border.all(color: Colors.transparent, width: 1.5);
+          boxShadows = glowing
+              ? [
+                  BoxShadow(
+                    color: GameColors.categoryActiveBorder.withValues(alpha: 0.35),
+                    blurRadius: 18,
+                    spreadRadius: 1,
+                  )
+                ]
+              : null;
+        }
+
         return GestureDetector(
           onTap: () => controller.tapCategory(columnIndex),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
+          child: AnimatedScale(
+            scale: isValidDestination && isHovering && !isEmptyStack ? 1.02 : 1.0,
+            duration: const Duration(milliseconds: 140),
             curve: Curves.easeOut,
-            padding: const EdgeInsets.only(top: 30),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: glowing
-                  ? [
-                      BoxShadow(
-                        color: GameColors.categoryActiveBorder.withValues(
-                          alpha: 0.35,
-                        ),
-                        blurRadius: 18,
-                        spreadRadius: 1,
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.topCenter,
-              children: [
-                Positioned(
-                  top: -28,
-                  left: 0,
-                  right: 0,
-                  child: _CategoryTab(
-                    name: category.name,
-                    progress: state.categoryProgress[category.id] ?? 0,
-                    required: category.requiredItemCount,
-                    completed: state.completedCategories.contains(category.id),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              curve: Curves.easeOut,
+              padding: const EdgeInsets.only(top: 30),
+              decoration: BoxDecoration(
+                color: isHovering && isValidDestination && isEmptyStack
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : isInvalidHover
+                        ? Colors.black.withValues(alpha: 0.05)
+                        : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+                border: borderStyle,
+                boxShadow: boxShadows,
+              ),
+              child: Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.topCenter,
+                children: [
+                  Positioned(
+                    top: -28,
+                    left: 0,
+                    right: 0,
+                    child: _CategoryTab(
+                      name: category.name,
+                      progress: state.categoryProgress[category.id] ?? 0,
+                      required: category.requiredItemCount,
+                      completed: state.completedCategories.contains(category.id),
+                    ),
                   ),
-                ),
-                SizedBox(
-                  height: cardHeight + stackStep * (column.length + 1),
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      for (var i = 1; i < column.length; i++)
-                        AnimatedPositioned(
-                          key: ValueKey(column[i]),
-                          duration: const Duration(milliseconds: 220),
-                          curve: Curves.easeOutCubic,
-                          top: (i - 1) * stackStep,
-                          left: 0,
-                          right: 0,
-                          child: Center(
-                            child: _PlayableCard(
-                              controller: controller,
-                              cardId: column[i],
-                              cardWidth: cardWidth,
-                              isTopCard: i == column.length - 1,
+                  SizedBox(
+                    height: cardHeight + stackStep * (column.length + 1),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        for (var i = 1; i < column.length; i++)
+                          AnimatedPositioned(
+                            key: ValueKey(column[i]),
+                            duration: const Duration(milliseconds: 220),
+                            curve: Curves.easeOutCubic,
+                            top: (i - 1) * stackStep,
+                            left: 0,
+                            right: 0,
+                            child: Center(
+                              child: _PlayableCard(
+                                controller: controller,
+                                cardId: column[i],
+                                cardWidth: cardWidth,
+                                isTopCard: i == column.length - 1,
+                              ),
                             ),
                           ),
-                        ),
-                    ],
+                        if (isValidDestination && isHovering && !isEmptyStack)
+                          Positioned(
+                            top: (column.length - 1) * stackStep,
+                            left: 0,
+                            right: 0,
+                            child: Center(
+                              child: _DropIndicator(cardWidth: cardWidth),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );
       },
+    );
+  }
+}
+
+class _DropIndicator extends StatelessWidget {
+  const _DropIndicator({required this.cardWidth});
+
+  final double cardWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: cardWidth,
+      height: cardWidth * 1.38,
+      decoration: BoxDecoration(
+        color: const Color(0xFF4CAF50).withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: const Color(0xFF4CAF50).withValues(alpha: 0.6),
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.arrow_downward_rounded,
+            color: Color(0xFF4CAF50),
+            size: 20,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'DROP HERE',
+            style: TextStyle(
+              color: const Color(0xFF4CAF50),
+              fontWeight: FontWeight.w900,
+              fontSize: cardWidth * 0.12,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -256,35 +379,63 @@ class _PlayableCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cardKey = controller.cardKeys.putIfAbsent(cardId, () => GlobalKey());
     final card = controller.state.puzzle.cardById(cardId);
     final faceUp = controller.isFaceUp(cardId);
     final playable = isTopCard && controller.isPlayable(cardId);
-    final child = PuzzleCardWidget(
-      card: card,
-      width: cardWidth,
-      isFaceUp: faceUp,
-      isSelected: controller.state.selectedCardId == cardId,
-      isHintHighlighted: controller.state.hintCardId == cardId,
-      onTap: playable ? () => controller.selectCard(cardId) : null,
+    final isHidden = controller.hiddenCardId == cardId;
+
+    final child = Opacity(
+      opacity: isHidden ? 0.0 : 1.0,
+      child: PuzzleCardWidget(
+        card: card,
+        width: cardWidth,
+        isFaceUp: faceUp,
+        isSelected: controller.state.selectedCardId == cardId && !isHidden,
+        isHintHighlighted: controller.state.hintCardId == cardId,
+        onTap: playable && !isHidden ? () => controller.selectCard(cardId) : null,
+      ),
     );
 
-    if (!playable) return IgnorePointer(child: child);
+    if (!playable || isHidden) {
+      return SizedBox(
+        key: cardKey,
+        child: IgnorePointer(child: child),
+      );
+    }
 
-    return LongPressDraggable<String>(
-      data: cardId,
-      dragAnchorStrategy: pointerDragAnchorStrategy,
-      feedback: Material(
-        color: Colors.transparent,
-        child: PuzzleCardWidget(
-          card: card,
-          width: cardWidth,
-          isFaceUp: true,
-          isDragging: true,
+    return SizedBox(
+      key: cardKey,
+      child: Draggable<String>(
+        data: cardId,
+        dragAnchorStrategy: pointerDragAnchorStrategy,
+        feedback: Material(
+          color: Colors.transparent,
+          child: Transform.rotate(
+            angle: 0.04,
+            child: PuzzleCardWidget(
+              card: card,
+              width: cardWidth,
+              isFaceUp: true,
+              isDragging: true,
+            ),
+          ),
         ),
+        childWhenDragging: Opacity(
+          opacity: 0.0,
+          child: child,
+        ),
+        onDragStarted: () {
+          controller.onDragStart(cardId);
+        },
+        onDragEnd: (details) {
+          // Cleanup handled in onCardDropped or onDragCanceled
+        },
+        onDraggableCanceled: (velocity, offset) {
+          controller.onDragCanceled(cardId, offset);
+        },
+        child: child,
       ),
-      childWhenDragging: Opacity(opacity: 0.35, child: child),
-      onDragStarted: () => controller.selectCard(cardId),
-      child: child,
     );
   }
 }
@@ -743,6 +894,157 @@ class _DialogButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _AnimationOverlay extends StatelessWidget {
+  const _AnimationOverlay({required this.controller});
+
+  final PlayScreenController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final columnGap = width < 380 ? 8.0 : 12.0;
+        final horizontalPadding = width < 380 ? 12.0 : 18.0;
+        final cardWidth =
+            (width - horizontalPadding * 2 - columnGap * 3) / 4;
+        final clampedCardWidth = cardWidth.clamp(72.0, 104.0);
+
+        return Stack(
+          children: [
+            CardAnimationWidget(
+              state: controller.animatingCard!,
+              cardWidth: clampedCardWidth,
+              controller: controller,
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class CardAnimationWidget extends StatefulWidget {
+  final AnimatingCardState state;
+  final double cardWidth;
+  final PlayScreenController controller;
+
+  const CardAnimationWidget({
+    super.key,
+    required this.state,
+    required this.cardWidth,
+    required this.controller,
+  });
+
+  @override
+  State<CardAnimationWidget> createState() => _CardAnimationWidgetState();
+}
+
+class _CardAnimationWidgetState extends State<CardAnimationWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<Offset> _positionAnimation;
+  late Animation<double> _shakeAnimation;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _rotationAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 240),
+      vsync: this,
+    );
+
+    _positionAnimation = Tween<Offset>(
+      begin: widget.state.startOffset,
+      end: widget.state.endOffset,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    ));
+
+    _scaleAnimation = Tween<double>(
+      begin: widget.state.isShake ? 1.06 : 1.03,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    ));
+
+    _rotationAnimation = Tween<double>(
+      begin: widget.state.isShake ? 0.04 : 0.02,
+      end: 0.0,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    ));
+
+    if (widget.state.isShake) {
+      _shakeAnimation = TweenSequence<double>([
+        TweenSequenceItem(tween: Tween(begin: 0.0, end: 10.0), weight: 1),
+        TweenSequenceItem(tween: Tween(begin: 10.0, end: -10.0), weight: 2),
+        TweenSequenceItem(tween: Tween(begin: -10.0, end: 6.0), weight: 2),
+        TweenSequenceItem(tween: Tween(begin: 6.0, end: -6.0), weight: 2),
+        TweenSequenceItem(tween: Tween(begin: -6.0, end: 0.0), weight: 1),
+      ]).animate(CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.0, 0.5, curve: Curves.linear),
+      ));
+    } else {
+      _shakeAnimation = const AlwaysStoppedAnimation(0.0);
+    }
+
+    _controller.forward().then((_) {
+      widget.state.onComplete();
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final card = widget.controller.state.puzzle.cardById(widget.state.cardId);
+    if (card == null) return const SizedBox.shrink();
+
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final position = _positionAnimation.value;
+        final shake = _shakeAnimation.value;
+        final scale = _scaleAnimation.value;
+        final rotation = _rotationAnimation.value;
+
+        return Positioned(
+          left: position.dx + shake,
+          top: position.dy,
+          child: IgnorePointer(
+            child: Transform.rotate(
+              angle: rotation,
+              child: Transform.scale(
+                scale: scale,
+                child: Material(
+                  color: Colors.transparent,
+                  child: PuzzleCardWidget(
+                    card: card,
+                    width: widget.cardWidth,
+                    isFaceUp: true,
+                    isDragging: scale > 1.01,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

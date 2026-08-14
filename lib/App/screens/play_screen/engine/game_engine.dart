@@ -1,3 +1,4 @@
+import '../../../core/puzzle/puzzle_card.dart';
 import '../../../core/puzzle/puzzle_data.dart';
 import '../../../core/puzzle/puzzle_generator.dart';
 import '../model/card_location.dart';
@@ -75,14 +76,42 @@ class GameEngine {
     return state.categoryProgress[categoryId] ?? 0;
   }
 
-  bool canDropOnCategory(String cardId, String categoryId) {
+  bool canMoveCard({
+    required PuzzleCard card,
+    required List<String> destinationStack,
+  }) {
+    if (card.isCategoryHeader || card.isDistractor) return false;
+
+    // If destination stack is empty of playable cards (only category header card at index 0)
+    if (destinationStack.length <= 1) {
+      return true;
+    }
+
+    final topPlayableId = destinationStack[1];
+    final topPlayableCard = puzzle.cardById(topPlayableId);
+    if (topPlayableCard == null) return false;
+
+    return card.categoryId == topPlayableCard.categoryId;
+  }
+
+  bool canDropOnColumn(String cardId, int columnIndex) {
     if (!isPlayable(cardId)) return false;
-    if (isCategoryCompleted(categoryId)) return false;
 
     final card = puzzle.cardById(cardId);
-    if (card == null || card.isDistractor) return false;
+    if (card == null) return false;
 
-    return card.categoryId == categoryId;
+    final column = state.columns[columnIndex];
+    
+    // Check if the card's category is already completed.
+    if (isCategoryCompleted(card.categoryId)) return false;
+
+    return canMoveCard(card: card, destinationStack: column);
+  }
+
+  bool canDropOnCategory(String cardId, String categoryId) {
+    final columnIndex = columnIndexForCategory(categoryId);
+    if (columnIndex < 0) return false;
+    return canDropOnColumn(cardId, columnIndex);
   }
 
   void selectCard(String? cardId) {
@@ -110,8 +139,7 @@ class GameEngine {
       return GameActionResult.noMovesLeft;
     }
 
-    final categoryId = categoryIdForColumn(columnIndex);
-    if (categoryId == null || !canDropOnCategory(cardId, categoryId)) {
+    if (!canDropOnColumn(cardId, columnIndex)) {
       return GameActionResult.invalid;
     }
 
@@ -124,6 +152,10 @@ class GameEngine {
     }
 
     state.columns[columnIndex].add(cardId);
+    
+    final card = puzzle.cardById(cardId)!;
+    final categoryId = card.categoryId;
+
     state.categoryProgress[categoryId] =
         (state.categoryProgress[categoryId] ?? 0) + 1;
 
