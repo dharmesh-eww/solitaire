@@ -5,4 +5,8 @@ class HomeScreenController extends StateController<HomeScreenBinding> {
   void onPlayTap() {
     binding?.onPlayPressed();
   }
+
+  void onLevelsTap() {
+    binding?.onLevelsPressed();
+  }
 }

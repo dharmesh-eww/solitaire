@@ -40,7 +40,7 @@ class HomeScreen extends StatekitView<HomeScreenController>
                         ),
                         child: Column(
                           children: [
-                            _HomeHeader(width: width),
+                            _HomeHeader(width: width, onLevelsTap: controller.onLevelsTap),
                             SizedBox(height: compact ? 18 : 30),
                             _CardQuestLogo(compact: compact),
                             SizedBox(height: compact ? 18 : 28),
@@ -67,12 +67,18 @@ class HomeScreen extends StatekitView<HomeScreenController>
   void onPlayPressed() {
     Navigator.pushNamed(context, Routes.playScreen);
   }
+
+  @override
+  void onLevelsPressed() {
+    Navigator.pushNamed(context, Routes.levelSelection);
+  }
 }
 
 class _HomeHeader extends StatelessWidget {
-  const _HomeHeader({required this.width});
+  const _HomeHeader({required this.width, required this.onLevelsTap});
 
   final double width;
+  final VoidCallback onLevelsTap;
 
   @override
   Widget build(BuildContext context) {
@@ -116,6 +122,8 @@ class _HomeHeader extends StatelessWidget {
             ],
           ),
         ),
+        const SizedBox(width: 8),
+        _RoundControl(icon: Icons.map_rounded, onTap: onLevelsTap),
       ],
     );
   }
