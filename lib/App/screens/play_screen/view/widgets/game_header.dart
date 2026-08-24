@@ -12,12 +12,14 @@ class GameHeader extends StatelessWidget {
     required this.onUndo,
     required this.onMenu,
     this.coins = 566,
+    this.starCount = 3,
   });
 
   final int level;
   final int hintCount;
   final int undoCount;
   final int coins;
+  final int starCount;
   final VoidCallback onPause;
   final VoidCallback onHint;
   final VoidCallback onUndo;
@@ -25,17 +27,18 @@ class GameHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          _CircleIconButton(
-            icon: Icons.pause_rounded,
-            onTap: onPause,
-          ),
-          const SizedBox(width: 6),
+          // Pause button
+          _CircleIconButton(icon: Icons.pause_rounded, onTap: onPause),
+          const SizedBox(width: 8),
+          // Coin badge
           _CoinBadge(coins: coins),
           const Spacer(),
+          // Level + stars
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -43,18 +46,19 @@ class GameHeader extends StatelessWidget {
                 'Level $level',
                 style: const TextStyle(
                   color: GameColors.textLight,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 17,
+                  letterSpacing: 0.2,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 3),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: List.generate(
                   3,
-                  (_) => const Icon(
-                    Icons.star_border_rounded,
-                    color: GameColors.starEmpty,
+                  (i) => Icon(
+                    Icons.star_rounded,
+                    color: i < starCount ? GameColors.starFilled : GameColors.starEmpty,
                     size: 18,
                   ),
                 ),
@@ -62,22 +66,24 @@ class GameHeader extends StatelessWidget {
             ],
           ),
           const Spacer(),
+          // Hint
           _BadgeIconButton(
             icon: Icons.lightbulb_rounded,
             badge: hintCount,
+            color: GameColors.hintBlue,
             onTap: onHint,
           ),
           const SizedBox(width: 6),
+          // Undo
           _BadgeIconButton(
             icon: Icons.undo_rounded,
             badge: undoCount,
+            color: GameColors.undoGrey,
             onTap: onUndo,
           ),
           const SizedBox(width: 6),
-          _CircleIconButton(
-            icon: Icons.menu_rounded,
-            onTap: onMenu,
-          ),
+          // Menu
+          _CircleIconButton(icon: Icons.menu_rounded, onTap: onMenu),
         ],
       ),
     );
@@ -95,15 +101,15 @@ class _CircleIconButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 38,
-        height: 38,
+        width: 40,
+        height: 40,
         decoration: BoxDecoration(
           color: GameColors.headerIconBg,
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.25),
-              blurRadius: 4,
+              color: Colors.black.withValues(alpha: 0.28),
+              blurRadius: 5,
               offset: const Offset(0, 2),
             ),
           ],
@@ -118,11 +124,13 @@ class _BadgeIconButton extends StatelessWidget {
   const _BadgeIconButton({
     required this.icon,
     required this.badge,
+    required this.color,
     required this.onTap,
   });
 
   final IconData icon;
   final int badge;
+  final Color color;
   final VoidCallback onTap;
 
   @override
@@ -132,23 +140,39 @@ class _BadgeIconButton extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          _CircleIconButton(icon: icon, onTap: onTap),
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.28),
+                  blurRadius: 5,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Icon(icon, color: Colors.white, size: 20),
+          ),
           if (badge > 0)
             Positioned(
-              top: -2,
-              right: -2,
+              top: -3,
+              right: -3,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                 decoration: BoxDecoration(
                   color: GameColors.badgeRed,
                   borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.white, width: 1.2),
                 ),
                 child: Text(
                   '$badge',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 10,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
               ),
@@ -167,37 +191,54 @@ class _CoinBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.only(left: 4, right: 8, top: 4, bottom: 4),
       decoration: BoxDecoration(
-        color: GameColors.headerBar.withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(20),
+        color: const Color(0xFF1A3D2B),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
-            Icons.monetization_on_rounded,
-            color: GameColors.coinGold,
-            size: 20,
+          Container(
+            width: 30,
+            height: 30,
+            decoration: const BoxDecoration(
+              color: GameColors.coinGold,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.workspace_premium_rounded,
+              color: Color(0xFFBF7D00),
+              size: 18,
+            ),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 6),
           Text(
             '$coins',
             style: const TextStyle(
               color: GameColors.textLight,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w800,
               fontSize: 14,
+              letterSpacing: 0.3,
             ),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 6),
           Container(
-            width: 20,
-            height: 20,
+            width: 18,
+            height: 18,
             decoration: const BoxDecoration(
-              color: GameColors.movesRibbon,
+              color: Color(0xFF2E7D32),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.add, color: Colors.white, size: 14),
+            child: const Icon(Icons.add, color: Colors.white, size: 12),
           ),
         ],
       ),
