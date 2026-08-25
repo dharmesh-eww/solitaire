@@ -80,25 +80,64 @@ class PuzzleCardWidget extends StatelessWidget {
   }
 
   Color _borderColor() {
+    if (card == null) {
+      if (isActiveCategory || isHintHighlighted) return GameColors.categoryActiveBorder;
+      return GameColors.categoryHeader.withValues(alpha: 0.35);
+    }
     if (isCompleted) return GameColors.categoryCompletedBorder;
     if (isHintHighlighted || isActiveCategory) return GameColors.categoryActiveBorder;
     if (isSelected) return GameColors.hintBlue;
-    if (isCategoryHeader) return GameColors.categoryHeaderDark;
+    if (isCategoryHeader || (card != null && card!.isCategoryHeader)) return GameColors.categoryHeaderDark;
     return GameColors.cardBorder;
   }
 
   double _borderWidth() {
+    if (card == null) return isActiveCategory ? 2.2 : 1.5;
     if (isCompleted) return 2.5;
     if (isSelected || isActiveCategory) return 2.5;
-    if (isCategoryHeader) return 1.8;
+    if (isCategoryHeader || (card != null && card!.isCategoryHeader)) return 1.8;
     return 1.2;
   }
 
   Widget _buildFace() {
-    if (isCategoryHeader) {
+    if (card == null) {
+      return _buildEmptySlot();
+    }
+    if (isCategoryHeader || card!.isCategoryHeader) {
       return _buildCategoryHeaderFace();
     }
     return _buildPlayableFace();
+  }
+
+  Widget _buildEmptySlot() {
+    return Container(
+      decoration: BoxDecoration(
+        color: GameColors.headerBar.withValues(alpha: 0.28),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.workspace_premium_outlined,
+              size: width * 0.32,
+              color: GameColors.categoryHeader.withValues(alpha: 0.45),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'CATEGORY',
+              style: TextStyle(
+                color: GameColors.categoryHeader.withValues(alpha: 0.55),
+                fontSize: width * 0.11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildCategoryHeaderFace() {

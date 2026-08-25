@@ -1,12 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants/game_colors.dart';
 
 class VictoryRibbon extends StatelessWidget {
-  const VictoryRibbon({
-    super.key,
-    required this.title,
-    required this.levelNumber,
-  });
+  const VictoryRibbon({super.key, required this.title, required this.levelNumber});
 
   final String title;
   final int levelNumber;
@@ -20,17 +15,9 @@ class VictoryRibbon extends StatelessWidget {
         clipBehavior: Clip.none,
         children: [
           // Left ribbon wing
-          Positioned(
-            left: 8,
-            top: 22,
-            child: _RibbonWing(isLeft: true),
-          ),
+          Positioned(left: 8, top: 22, child: _RibbonWing(isLeft: true)),
           // Right ribbon wing
-          Positioned(
-            right: 8,
-            top: 22,
-            child: _RibbonWing(isLeft: false),
-          ),
+          Positioned(right: 8, top: 22, child: _RibbonWing(isLeft: false)),
           // Center main banner
           Container(
             height: 64,
@@ -39,29 +26,14 @@ class VictoryRibbon extends StatelessWidget {
               gradient: const LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFFFF5252),
-                  Color(0xFFD32F2F),
-                  Color(0xFF8E0000),
-                ],
+                colors: [Color(0xFFFF5252), Color(0xFFD32F2F), Color(0xFF8E0000)],
                 stops: [0.0, 0.45, 1.0],
               ),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: const Color(0xFFFFD54F),
-                width: 3.5,
-              ),
+              border: Border.all(color: const Color(0xFFFFD54F), width: 3.5),
               boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.4),
-                  blurRadius: 14,
-                  offset: const Offset(0, 7),
-                ),
-                BoxShadow(
-                  color: const Color(0xFFFFD54F).withValues(alpha: 0.4),
-                  blurRadius: 10,
-                  spreadRadius: 1,
-                ),
+                BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 14, offset: const Offset(0, 7)),
+                BoxShadow(color: const Color(0xFFFFD54F).withValues(alpha: 0.4), blurRadius: 10, spreadRadius: 1),
               ],
             ),
             child: Column(
@@ -79,16 +51,8 @@ class VictoryRibbon extends StatelessWidget {
                     letterSpacing: 1.8,
                     height: 1.1,
                     shadows: [
-                      Shadow(
-                        color: Color(0xFF4A0000),
-                        blurRadius: 4,
-                        offset: Offset(0, 3),
-                      ),
-                      Shadow(
-                        color: Color(0xFF200000),
-                        blurRadius: 8,
-                        offset: Offset(0, 4),
-                      ),
+                      Shadow(color: Color(0xFF4A0000), blurRadius: 4, offset: Offset(0, 3)),
+                      Shadow(color: Color(0xFF200000), blurRadius: 8, offset: Offset(0, 4)),
                     ],
                   ),
                 ),
@@ -119,23 +83,13 @@ class VictoryRibbon extends StatelessWidget {
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFFFECB3), Color(0xFFFFB300)],
-                ),
+                gradient: const LinearGradient(colors: [Color(0xFFFFECB3), Color(0xFFFFB300)]),
                 border: Border.all(color: Colors.white, width: 1.5),
                 boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.3),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 6, offset: const Offset(0, 2)),
                 ],
               ),
-              child: const Icon(
-                Icons.workspace_premium_rounded,
-                size: 16,
-                color: Color(0xFF5D4037),
-              ),
+              child: const Icon(Icons.workspace_premium_rounded, size: 16, color: Color(0xFF5D4037)),
             ),
           ),
         ],
@@ -153,10 +107,7 @@ class _RibbonWing extends StatelessWidget {
   Widget build(BuildContext context) {
     return Transform.scale(
       scaleX: isLeft ? 1 : -1,
-      child: CustomPaint(
-        size: const Size(42, 38),
-        painter: _RibbonWingPainter(),
-      ),
+      child: CustomPaint(size: const Size(42, 38), painter: _RibbonWingPainter()),
     );
   }
 }
@@ -168,10 +119,7 @@ class _RibbonWingPainter extends CustomPainter {
       ..shader = const LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [
-          Color(0xFFC62828),
-          Color(0xFF7F0000),
-        ],
+        colors: [Color(0xFFC62828), Color(0xFF7F0000)],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
 
     final path = Path()

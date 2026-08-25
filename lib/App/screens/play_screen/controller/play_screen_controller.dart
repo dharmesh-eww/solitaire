@@ -37,6 +37,8 @@ class PlayScreenController extends StateController<PlayScreenBinding> {
 
   final Map<String, GlobalKey> cardKeys = {};
   final Map<int, GlobalKey> columnKeys = {};
+  final Map<int, GlobalKey> headerKeys = {};
+  final Map<int, GlobalKey> playableStackKeys = {};
 
   bool isPlayable(String cardId) => engine.isPlayable(cardId);
 
@@ -44,6 +46,14 @@ class PlayScreenController extends StateController<PlayScreenBinding> {
 
   bool canDropOnColumn(String cardId, int columnIndex) {
     return engine.canDropOnColumn(cardId, columnIndex);
+  }
+
+  bool canDropOnCategoryHeader(String cardId, int columnIndex) {
+    return engine.canDropOnCategoryHeader(cardId, columnIndex);
+  }
+
+  bool canDropOnPlayableStack(String cardId, int columnIndex) {
+    return engine.canDropOnPlayableStack(cardId, columnIndex);
   }
 
   bool canDropOnCategory(String cardId, int columnIndex) {
@@ -59,6 +69,20 @@ class PlayScreenController extends StateController<PlayScreenBinding> {
     engine.tapCategory(columnIndex);
     _checkGameWin();
     update();
+  }
+
+  void tapCategoryHeader(int columnIndex) {
+    final selected = state.selectedCardId;
+    if (selected != null && canDropOnCategoryHeader(selected, columnIndex)) {
+      moveCardToCategory(selected, columnIndex);
+    }
+  }
+
+  void tapPlayableStack(int columnIndex) {
+    final selected = state.selectedCardId;
+    if (selected != null && canDropOnPlayableStack(selected, columnIndex)) {
+      moveCardToCategory(selected, columnIndex);
+    }
   }
 
   void moveCardToCategory(String cardId, int columnIndex) {
@@ -122,26 +146,20 @@ class PlayScreenController extends StateController<PlayScreenBinding> {
       onComplete: () {
         animatingCard = null;
         hiddenCardId = null;
+        draggingCardId = null;
+        selectCard(null);
         update();
       },
     );
     update();
   }
 
-  void onCardDropped(String cardId, int columnIndex, Offset releaseOffset) {
+  void onCardDroppedOnHeader(String cardId, int columnIndex, Offset releaseOffset) {
     draggingCardId = null;
 
-    final columnKey = columnKeys[columnIndex];
-    final RenderBox? columnBox = columnKey?.currentContext?.findRenderObject() as RenderBox?;
-    final columnOffset = columnBox?.localToGlobal(Offset.zero) ?? releaseOffset;
-
-    final double cardWidth = columnBox?.size.width ?? 80.0;
-    final double cardHeight = cardWidth * 1.38;
-    final double stackStep = cardHeight * 0.25;
-
-    final column = state.columns[columnIndex];
-    final destY = columnOffset.dy + 30.0 + (column.length - 1) * stackStep;
-    final endOffset = Offset(columnOffset.dx, destY);
+    final headerKey = headerKeys[columnIndex];
+    final RenderBox? headerBox = headerKey?.currentContext?.findRenderObject() as RenderBox?;
+    final endOffset = headerBox?.localToGlobal(Offset.zero) ?? releaseOffset;
 
     animatingCard = AnimatingCardState(
       cardId: cardId,
@@ -150,12 +168,54 @@ class PlayScreenController extends StateController<PlayScreenBinding> {
       isShake: false,
       onComplete: () {
         animatingCard = null;
-        moveCardToCategory(cardId, columnIndex);
         hiddenCardId = null;
+        draggingCardId = null;
+        selectCard(null);
+        moveCardToCategory(cardId, columnIndex);
         update();
       },
     );
     update();
+  }
+
+  void onCardDroppedOnPlayableStack(String cardId, int columnIndex, Offset releaseOffset) {
+    draggingCardId = null;
+
+    final stackKey = playableStackKeys[columnIndex];
+    final RenderBox? stackBox = stackKey?.currentContext?.findRenderObject() as RenderBox?;
+    final stackOffset = stackBox?.localToGlobal(Offset.zero) ?? releaseOffset;
+
+    final double cardWidth = stackBox?.size.width ?? 80.0;
+    final double cardHeight = cardWidth * 1.38;
+    final double stackStep = cardHeight * 0.22;
+
+    final double destY = stackOffset.dy + (state.columns[columnIndex].length * stackStep);
+    final endOffset = Offset(stackOffset.dx, destY);
+
+    animatingCard = AnimatingCardState(
+      cardId: cardId,
+      startOffset: releaseOffset,
+      endOffset: endOffset,
+      isShake: false,
+      onComplete: () {
+        animatingCard = null;
+        hiddenCardId = null;
+        draggingCardId = null;
+        selectCard(null);
+        moveCardToCategory(cardId, columnIndex);
+        update();
+      },
+    );
+    update();
+  }
+
+  void onCardDropped(String cardId, int columnIndex, Offset releaseOffset) {
+    final card = state.puzzle.cardById(cardId);
+    if (card != null && card.isCategoryHeader) {
+      onCardDroppedOnHeader(cardId, columnIndex, releaseOffset);
+    } else {
+      onCardDroppedOnPlayableStack(cardId, columnIndex, releaseOffset);
+    }
   }
 
   void drawFromStock() {

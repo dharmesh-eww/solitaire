@@ -1,4 +1,3 @@
-import '../../../core/puzzle/puzzle_card.dart';
 import '../../../core/puzzle/puzzle_data.dart';
 import '../../../core/puzzle/puzzle_generator.dart';
 import '../model/card_location.dart';
@@ -23,12 +22,6 @@ class GameEngine {
     if (card == null) return false;
     // Distractor cards can never be played
     if (card.isDistractor) return false;
-    // Category header cards that are already fixed at column[0] are never moveable.
-    // But a header card sitting in the waste CAN be played (it acts as a "cap").
-    if (card.isCategoryHeader) {
-      // Only playable when it is the top of the waste pile
-      return state.waste.isNotEmpty && state.waste.last == cardId;
-    }
     if (!isFaceUp(cardId)) return false;
 
     final location = locateCard(cardId);
@@ -41,8 +34,6 @@ class GameEngine {
         return false;
       case CardZone.tableau:
         final column = state.columns[location.columnIndex!];
-        // The header card fixed at column[0] is never moveable from the tableau
-        if (column.isNotEmpty && column[0] == cardId) return false;
         return column.isNotEmpty && column.last == cardId;
     }
   }
@@ -63,15 +54,35 @@ class GameEngine {
   }
 
   int columnIndexForCategory(String categoryId) {
-    return puzzle.initialLayout.categoryColumnIds.indexOf(categoryId);
+    // 1. If category header is already placed in a column, return that column
+    for (var i = 0; i < state.columns.length; i++) {
+      final headerId = state.categoryHeaders[i];
+      if (headerId != null) {
+        final headerCard = puzzle.cardById(headerId);
+        if (headerCard != null && headerCard.categoryId == categoryId) {
+          return i;
+        }
+      }
+    }
+    // 2. Otherwise return first column with empty header
+    for (var i = 0; i < state.columns.length; i++) {
+      if (state.categoryHeaders[i] == null) {
+        return i;
+      }
+    }
+    return -1;
   }
 
   String? categoryIdForColumn(int columnIndex) {
-    if (columnIndex < 0 ||
-        columnIndex >= puzzle.initialLayout.categoryColumnIds.length) {
+    if (columnIndex < 0 || columnIndex >= state.columns.length) {
       return null;
     }
-    return puzzle.initialLayout.categoryColumnIds[columnIndex];
+    final headerId = state.categoryHeaders[columnIndex];
+    if (headerId != null) {
+      final headerCard = puzzle.cardById(headerId);
+      return headerCard?.categoryId;
+    }
+    return null;
   }
 
   bool isCategoryCompleted(String categoryId) {
@@ -86,50 +97,43 @@ class GameEngine {
     return state.categoryProgress[categoryId] ?? 0;
   }
 
-  bool canMoveCard({
-    required PuzzleCard card,
-    required List<String> destinationStack,
-  }) {
-    if (card.isDistractor) return false;
-
-    // The fixed header at column[0] is never a destination for playable cards —
-    // only the playable area (index 1+) is considered here.
-
-    // If the top card in the playable area is a category-header "cap" card,
-    // the stack is locked — nothing can be placed on top of it.
-    if (destinationStack.length > 1) {
-      final topId = destinationStack.last;
-      final topCard = puzzle.cardById(topId);
-      if (topCard != null && topCard.isCategoryHeader) return false;
-    }
-
-    // Empty playable area (only the fixed header at index 0):
-    // any non-distractor card may be placed here.
-    if (destinationStack.length <= 1) {
-      return true;
-    }
-
-    // Non-empty playable area: the card must belong to the same category
-    // as the card at index 1 (the first card placed in this stack).
-    final firstPlayableId = destinationStack[1];
-    final firstPlayableCard = puzzle.cardById(firstPlayableId);
-    if (firstPlayableCard == null) return false;
-
-    return card.categoryId == firstPlayableCard.categoryId;
-  }
-
-  bool canDropOnColumn(String cardId, int columnIndex) {
+  bool canDropOnCategoryHeader(String cardId, int columnIndex) {
     if (!isPlayable(cardId)) return false;
 
     final card = puzzle.cardById(cardId);
-    if (card == null) return false;
+    if (card == null || !card.isCategoryHeader) return false;
 
-    final column = state.columns[columnIndex];
-    
-    // Check if the card's category is already completed.
+    // Header slot must be empty
+    if (state.categoryHeaders[columnIndex] != null) return false;
+
+    // Must not already be placed in another column
+    if (state.categoryHeaders.values.contains(cardId)) return false;
+
+    return true;
+  }
+
+  bool canDropOnPlayableStack(String cardId, int columnIndex) {
+    if (!isPlayable(cardId)) return false;
+
+    final card = puzzle.cardById(cardId);
+    if (card == null || card.isCategoryHeader || card.isDistractor) return false;
+
+    // Check if the card's category is already completed
     if (isCategoryCompleted(card.categoryId)) return false;
 
-    return canMoveCard(card: card, destinationStack: column);
+    final headerCardId = state.categoryHeaders[columnIndex];
+    if (headerCardId == null) return false;
+
+    final headerCard = puzzle.cardById(headerCardId);
+    if (headerCard == null) return false;
+
+    // Regular card MUST match the category of the placed header card!
+    return card.categoryId == headerCard.categoryId;
+  }
+
+  bool canDropOnColumn(String cardId, int columnIndex) {
+    return canDropOnCategoryHeader(cardId, columnIndex) ||
+        canDropOnPlayableStack(cardId, columnIndex);
   }
 
   bool canDropOnCategory(String cardId, String categoryId) {
@@ -152,11 +156,7 @@ class GameEngine {
     return moveCardToCategory(selected, columnIndex, consumeMove: true);
   }
 
-  GameActionResult moveCardToCategory(
-    String cardId,
-    int columnIndex, {
-    required bool consumeMove,
-  }) {
+  GameActionResult moveCardToCategory(String cardId, int columnIndex, {required bool consumeMove}) {
     if (!isInteractive) return GameActionResult.gameOver;
     if (state.movesRemaining <= 0 && consumeMove) {
       state.status = GameStatus.outOfMoves;
@@ -175,16 +175,20 @@ class GameEngine {
       return GameActionResult.invalid;
     }
 
-    state.columns[columnIndex].add(cardId);
-    
     final card = puzzle.cardById(cardId)!;
     final categoryId = card.categoryId;
 
-    state.categoryProgress[categoryId] =
-        (state.categoryProgress[categoryId] ?? 0) + 1;
+    if (card.isCategoryHeader && state.categoryHeaders[columnIndex] == null) {
+      // Placed as the category header for this column!
+      state.categoryHeaders[columnIndex] = cardId;
+    } else {
+      // Placed in the tableau stack of this column!
+      state.columns[columnIndex].add(cardId);
+      state.categoryProgress[categoryId] = (state.categoryProgress[categoryId] ?? 0) + 1;
 
-    if (categoryPlacedCount(categoryId) >= categoryRequiredCount(categoryId)) {
-      state.completedCategories.add(categoryId);
+      if (categoryPlacedCount(categoryId) >= categoryRequiredCount(categoryId)) {
+        state.completedCategories.add(categoryId);
+      }
     }
 
     state.selectedCardId = null;
@@ -304,6 +308,7 @@ class GameEngine {
     final fresh = GameState.fromPuzzle(state.puzzle);
     state
       ..columns = fresh.columns
+      ..categoryHeaders = fresh.categoryHeaders
       ..stock = fresh.stock
       ..waste = fresh.waste
       ..faceDownIds = fresh.faceDownIds
@@ -350,13 +355,28 @@ class GameEngine {
       return true;
     }
 
+    for (final entry in state.categoryHeaders.entries) {
+      if (entry.value == cardId) {
+        state.categoryHeaders[entry.key] = null;
+        return true;
+      }
+    }
+
     for (var col = 0; col < state.columns.length; col++) {
       final column = state.columns[col];
       final index = column.indexOf(cardId);
       if (index != -1) {
+        final card = puzzle.cardById(cardId);
+        if (card != null && !card.isCategoryHeader) {
+          final curProg = state.categoryProgress[card.categoryId] ?? 0;
+          if (curProg > 0) {
+            state.categoryProgress[card.categoryId] = curProg - 1;
+            state.completedCategories.remove(card.categoryId);
+          }
+        }
         column.removeAt(index);
-        if (index > 0) {
-          final revealedId = column[index - 1];
+        if (column.isNotEmpty) {
+          final revealedId = column.last;
           state.faceDownIds.remove(revealedId);
         }
         return true;
@@ -374,10 +394,9 @@ class GameEngine {
 
   _HintMove? _findHintMove() {
     final candidates = <String>[
-      if (state.waste.isNotEmpty && isPlayable(state.waste.last))
-        state.waste.last,
+      if (state.waste.isNotEmpty && isPlayable(state.waste.last)) state.waste.last,
       for (var col = 0; col < state.columns.length; col++)
-        if (state.columns[col].length > 1) state.columns[col].last else '',
+        if (state.columns[col].isNotEmpty) state.columns[col].last else '',
     ].where((id) => id.isNotEmpty && isPlayable(id));
 
     for (final cardId in candidates) {

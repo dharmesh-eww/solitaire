@@ -11,21 +11,19 @@ class LevelSelectionRepository {
   Future<List<LevelProgress>> loadLevelProgress() async {
     final prefs = await SharedPreferences.getInstance();
     final progressJson = prefs.getString(_progressKey);
-    
+
     if (progressJson == null) {
       return _generateInitialProgress();
     }
 
     try {
       final List<dynamic> decoded = jsonDecode(progressJson) as List<dynamic>;
-      
+
       if (decoded.isEmpty) {
         return _generateInitialProgress();
       }
 
-      return decoded
-          .map((e) => LevelProgress.fromJson(Map<String, dynamic>.from(e)))
-          .toList();
+      return decoded.map((e) => LevelProgress.fromJson(Map<String, dynamic>.from(e))).toList();
     } catch (e) {
       return _generateInitialProgress();
     }
@@ -57,31 +55,25 @@ class LevelSelectionRepository {
     await prefs.setInt(_coinsKey, coins);
   }
 
-  Future<void> updateLevelCompletion(
-    int levelNumber,
-    int stars,
-    int score,
-  ) async {
+  Future<void> updateLevelCompletion(int levelNumber, int stars, int score) async {
     final progress = await loadLevelProgress();
     final index = levelNumber - 1;
-    
+
     if (index >= 0 && index < progress.length) {
       final current = progress[index];
       final updated = current.copyWith(
         isCompleted: true,
         stars: stars > current.stars ? stars : current.stars,
-        bestScore: current.bestScore == null || score > current.bestScore!
-            ? score
-            : current.bestScore,
+        bestScore: current.bestScore == null || score > current.bestScore! ? score : current.bestScore,
       );
-      
+
       progress[index] = updated;
-      
+
       // Unlock next level
       if (index + 1 < progress.length) {
         progress[index + 1] = progress[index + 1].copyWith(isUnlocked: true);
       }
-      
+
       await saveLevelProgress(progress);
     }
   }
@@ -89,18 +81,14 @@ class LevelSelectionRepository {
   List<LevelProgress> _generateInitialProgress() {
     const totalLevels = 500;
     final progress = <LevelProgress>[];
-    
+
     for (int i = 1; i <= totalLevels; i++) {
       final difficulty = _getDifficultyForLevel(i);
-      progress.add(LevelProgress(
-        levelNumber: i,
-        isUnlocked: true, // TODO: revert to `i == 1` when testing is done
-        isCompleted: false,
-        stars: 0,
-        difficulty: difficulty,
-      ));
+      progress.add(
+        LevelProgress(levelNumber: i, isUnlocked: true, isCompleted: false, stars: 0, difficulty: difficulty),
+      );
     }
-    
+
     return progress;
   }
 

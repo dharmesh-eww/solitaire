@@ -4,6 +4,7 @@ import 'card_location.dart';
 class GameSnapshot {
   const GameSnapshot({
     required this.columns,
+    required this.categoryHeaders,
     required this.stock,
     required this.waste,
     required this.faceDownIds,
@@ -21,6 +22,7 @@ class GameSnapshot {
   });
 
   final List<List<String>> columns;
+  final Map<int, String?> categoryHeaders;
   final List<String> stock;
   final List<String> waste;
   final Set<String> faceDownIds;
@@ -41,6 +43,7 @@ class GameState {
   GameState({
     required this.puzzle,
     required this.columns,
+    required this.categoryHeaders,
     required this.stock,
     required this.waste,
     required this.faceDownIds,
@@ -60,6 +63,7 @@ class GameState {
 
   final PuzzleData puzzle;
   List<List<String>> columns;
+  Map<int, String?> categoryHeaders;
   List<String> stock;
   List<String> waste;
   Set<String> faceDownIds;
@@ -79,6 +83,7 @@ class GameState {
   GameSnapshot capture() {
     return GameSnapshot(
       columns: columns.map(List<String>.from).toList(),
+      categoryHeaders: Map<int, String?>.from(categoryHeaders),
       stock: List<String>.from(stock),
       waste: List<String>.from(waste),
       faceDownIds: Set<String>.from(faceDownIds),
@@ -98,6 +103,7 @@ class GameState {
 
   void restore(GameSnapshot snapshot) {
     columns = snapshot.columns.map(List<String>.from).toList();
+    categoryHeaders = Map<int, String?>.from(snapshot.categoryHeaders);
     stock = List<String>.from(snapshot.stock);
     waste = List<String>.from(snapshot.waste);
     faceDownIds = Set<String>.from(snapshot.faceDownIds);
@@ -121,10 +127,14 @@ class GameState {
     final categoryProgress = {
       for (final category in puzzle.categories) category.id: 0,
     };
+    final categoryHeaders = <int, String?>{
+      for (var i = 0; i < columns.length; i++) i: null,
+    };
 
     return GameState(
       puzzle: puzzle,
       columns: columns.map((entry) => List<String>.from(entry.value)).toList(),
+      categoryHeaders: categoryHeaders,
       stock: List<String>.from(layout.stockCardIds),
       waste: List<String>.from(layout.wasteCardIds),
       faceDownIds: Set<String>.from(layout.faceDownCardIds),

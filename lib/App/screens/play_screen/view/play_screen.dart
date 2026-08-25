@@ -58,7 +58,6 @@ class PlayScreen extends StatekitView<PlayScreenController> implements PlayScree
                                   ),
                                 ),
                               ),
-                              _InstructionBar(controller: controller),
                               _BottomControls(controller: controller),
                             ],
                           ),
@@ -170,81 +169,119 @@ class CategoryColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final columnKey = controller.columnKeys.putIfAbsent(columnIndex, () => GlobalKey());
+    final headerKey = controller.headerKeys.putIfAbsent(columnIndex, () => GlobalKey());
+    final stackKey = controller.playableStackKeys.putIfAbsent(columnIndex, () => GlobalKey());
     final state = controller.state;
-    final category = state.puzzle.categories[columnIndex];
     final column = state.columns[columnIndex];
     final cardHeight = cardWidth * 1.38;
     final stackStep = cardHeight * 0.22;
 
-    final isCompleted = state.completedCategories.contains(category.id);
-    final isActive = state.activeCategoryId == category.id || state.hintCategoryId == category.id;
+    // Header card placed in this column's top slot
+    final headerCardId = state.categoryHeaders[columnIndex];
+    final headerCard = headerCardId != null ? state.puzzle.cardById(headerCardId) : null;
+    final category = headerCard != null ? state.puzzle.categoryById(headerCard.categoryId) : null;
 
-    return DragTarget<String>(
-      key: columnKey,
-      onWillAcceptWithDetails: (details) => controller.canDropOnColumn(details.data, columnIndex),
-      onAcceptWithDetails: (details) => controller.onCardDropped(details.data, columnIndex, details.offset),
-      builder: (context, candidateData, rejectedData) {
-        return GestureDetector(
-          onTap: () => controller.tapCategory(columnIndex),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
-            curve: Curves.easeOut,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // ── Category header card — fixed cardWidth × cardHeight ──
-                SizedBox(
+    final isCompleted = category != null && state.completedCategories.contains(category.id);
+    final isActive = category != null && (state.activeCategoryId == category.id || state.hintCategoryId == category.id);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        // ── Top Row: Category Header Slot Drag Target ──
+        DragTarget<String>(
+          key: headerKey,
+          onWillAcceptWithDetails: (details) => controller.canDropOnCategoryHeader(details.data, columnIndex),
+          onAcceptWithDetails: (details) => controller.onCardDroppedOnHeader(details.data, columnIndex, details.offset),
+          builder: (context, candidateData, rejectedData) {
+            return GestureDetector(
+              onTap: () => controller.tapCategoryHeader(columnIndex),
+              child: SizedBox(
+                width: cardWidth,
+                height: cardHeight,
+                child: PuzzleCardWidget(
+                  card: headerCard,
                   width: cardWidth,
-                  height: cardHeight,
-                  child: PuzzleCardWidget(
-                    card: column.isNotEmpty ? state.puzzle.cardById(column[0]) : null,
-                    width: cardWidth,
-                    isFaceUp: true,
-                    isCategoryHeader: true,
-                    isActiveCategory: isActive,
-                    isCompleted: isCompleted,
-                    categoryProgress: state.categoryProgress[category.id] ?? 0,
-                    categoryRequired: category.requiredItemCount,
-                  ),
+                  isFaceUp: true,
+                  isCategoryHeader: true,
+                  isActiveCategory: isActive,
+                  isCompleted: isCompleted,
+                  categoryProgress: category != null ? (state.categoryProgress[category.id] ?? 0) : 0,
+                  categoryRequired: category?.requiredItemCount ?? 0,
                 ),
-                const SizedBox(height: 12),
-                // ── Stacked playable cards — same width, overlapping stack ──
-                if (column.length > 1)
-                  SizedBox(
-                    width: cardWidth,
-                    height: cardHeight + stackStep * (column.length - 2),
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        for (var i = 1; i < column.length; i++)
-                          AnimatedPositioned(
-                            key: ValueKey(column[i]),
-                            duration: const Duration(milliseconds: 220),
-                            curve: Curves.easeOutCubic,
-                            top: (i - 1) * stackStep,
-                            left: 0,
-                            right: 0,
-                            child: SizedBox(
-                              width: cardWidth,
-                              height: cardHeight,
-                              child: _PlayableCard(
-                                controller: controller,
-                                cardId: column[i],
-                                cardWidth: cardWidth,
-                                isTopCard: i == column.length - 1,
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        // ── Second Row: Playable Tableau Stack Drag Target ──
+        DragTarget<String>(
+          key: stackKey,
+          onWillAcceptWithDetails: (details) => controller.canDropOnPlayableStack(details.data, columnIndex),
+          onAcceptWithDetails: (details) => controller.onCardDroppedOnPlayableStack(details.data, columnIndex, details.offset),
+          builder: (context, candidateData, rejectedData) {
+            return GestureDetector(
+              onTap: () => controller.tapPlayableStack(columnIndex),
+              child: column.isNotEmpty
+                  ? SizedBox(
+                      width: cardWidth,
+                      height: cardHeight + stackStep * (column.length - 1),
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          for (var i = 0; i < column.length; i++)
+                            AnimatedPositioned(
+                              key: ValueKey(column[i]),
+                              duration: const Duration(milliseconds: 220),
+                              curve: Curves.easeOutCubic,
+                              top: i * stackStep,
+                              left: 0,
+                              right: 0,
+                              child: SizedBox(
+                                width: cardWidth,
+                                height: cardHeight,
+                                child: _PlayableCard(
+                                  controller: controller,
+                                  cardId: column[i],
+                                  cardWidth: cardWidth,
+                                  isTopCard: i == column.length - 1,
+                                ),
                               ),
                             ),
-                          ),
-                        // No drop indicator shown during drag
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        );
-      },
+                        ],
+                      ),
+                    )
+                  : _EmptyPlayableStackSlot(cardWidth: cardWidth),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Empty Playable Stack Slot
+// ─────────────────────────────────────────────────────────────
+
+class _EmptyPlayableStackSlot extends StatelessWidget {
+  const _EmptyPlayableStackSlot({required this.cardWidth});
+
+  final double cardWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    final cardHeight = cardWidth * 1.38;
+    return Container(
+      width: cardWidth,
+      height: cardHeight,
+      decoration: BoxDecoration(
+        color: GameColors.headerBar.withValues(alpha: 0.22),
+        borderRadius: BorderRadius.circular(11),
+        border: Border.all(color: GameColors.cardBorder.withValues(alpha: 0.35), width: 1.4),
+      ),
+      child: Center(
+        child: Icon(Icons.layers_outlined, size: cardWidth * 0.28, color: GameColors.cardBorder.withValues(alpha: 0.4)),
+      ),
     );
   }
 }
@@ -444,98 +481,6 @@ class _StockPile extends StatelessWidget {
       ),
     );
   }
-}
-
-// ─────────────────────────────────────────────────────────────
-// Instruction Bar (arrow-banner style)
-// ─────────────────────────────────────────────────────────────
-
-class _InstructionBar extends StatelessWidget {
-  const _InstructionBar({required this.controller});
-
-  final PlayScreenController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    final activeId = controller.state.activeCategoryId;
-    final hintId = controller.state.hintCategoryId;
-    final showId = hintId ?? activeId;
-    final category = showId == null ? null : controller.state.puzzle.categoryById(showId);
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-      child: ClipPath(
-        clipper: _ArrowBannerClipper(),
-        child: Container(
-          padding: const EdgeInsets.only(left: 14, right: 28, top: 10, bottom: 10),
-          color: GameColors.instructionBar,
-          child: Row(
-            children: [
-              // Green info circle
-              Container(
-                width: 30,
-                height: 30,
-                decoration: const BoxDecoration(color: Color(0xFF2E7D32), shape: BoxShape.circle),
-                child: const Icon(Icons.info_rounded, color: Colors.white, size: 18),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: RichText(
-                  text: TextSpan(
-                    children: [
-                      const TextSpan(
-                        text: 'Find all cards that belong to\n',
-                        style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
-                      ),
-                      TextSpan(
-                        text: category?.name ?? 'the categories',
-                        style: const TextStyle(
-                          color: GameColors.categoryHeader,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      if (category != null)
-                        WidgetSpan(
-                          alignment: PlaceholderAlignment.middle,
-                          child: Padding(
-                            padding: const EdgeInsets.only(left: 4),
-                            child: Icon(Icons.workspace_premium_rounded, color: GameColors.crownGold, size: 16),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ArrowBannerClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    const arrowWidth = 16.0;
-    const radius = 10.0;
-    final path = Path()
-      ..moveTo(radius, 0)
-      ..lineTo(size.width - arrowWidth - radius, 0)
-      ..quadraticBezierTo(size.width - arrowWidth, 0, size.width - arrowWidth + arrowWidth * 0.5, size.height / 2)
-      ..lineTo(size.width - arrowWidth + arrowWidth * 0.5, size.height / 2)
-      ..lineTo(size.width - arrowWidth, size.height)
-      ..lineTo(radius, size.height)
-      ..quadraticBezierTo(0, size.height, 0, size.height - radius)
-      ..lineTo(0, radius)
-      ..quadraticBezierTo(0, 0, radius, 0)
-      ..close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }
 
 // ─────────────────────────────────────────────────────────────

@@ -108,75 +108,53 @@ class PuzzleGenerator {
     cards.addAll(distractorPool.cards);
     solution.addAll(distractorPool.solution);
 
-    final playableCards = cards.where((card) => !card.isCategoryHeader).toList()
-      ..shuffle(random);
-    final stockCount = min(
-      playableCards.length,
-      max(4, (playableCards.length * 0.22).round()),
-    );
-    final wasteCount = min(3, max(0, playableCards.length - stockCount));
-    final stockCardIds = playableCards
-        .take(stockCount)
-        .map((card) => card.id)
-        .toList();
-    final wasteCardIds = playableCards
-        .skip(stockCount)
-        .take(wasteCount)
-        .map((card) => card.id)
-        .toList();
-    final tableauCards = playableCards.skip(stockCount + wasteCount).toList();
+    // All cards (category header cards + item cards + distractors) are in the playable deck
+    final allPlayableCards = List<PuzzleCard>.from(cards)..shuffle(random);
 
     final columnCount = categories.length;
+    // Distribute initial cards across the tableau columns (2-3 cards per column)
+    final cardsPerColumn = (allPlayableCards.length * 0.4 ~/ columnCount).clamp(2, 4);
     final tableauColumns = {
       for (var i = 0; i < columnCount; i++) i: <String>[],
     };
 
-    final categoryColumnIds = categories.map((c) => c.id).toList();
-
-    for (var i = 0; i < columnCount; i++) {
-      final header = cards.firstWhere(
-        (card) =>
-            card.isCategoryHeader && card.categoryId == categoryColumnIds[i],
-      );
-      tableauColumns[i]!.add(header.id);
-    }
-
-    final cardsPerColumn = max(1, tableauCards.length ~/ columnCount);
     var cardIndex = 0;
     for (var col = 0; col < columnCount; col++) {
-      final targetCount = col == columnCount - 1
-          ? tableauCards.length - cardIndex
-          : cardsPerColumn;
-      for (var j = 0; j < targetCount && cardIndex < tableauCards.length; j++) {
-        tableauColumns[col]!.add(tableauCards[cardIndex].id);
+      for (var j = 0; j < cardsPerColumn && cardIndex < allPlayableCards.length; j++) {
+        tableauColumns[col]!.add(allPlayableCards[cardIndex].id);
         cardIndex++;
       }
     }
 
-    final faceDownTarget = (playableCards.length * config.faceDownRatio)
-        .round()
-        .clamp(2, 999);
-    final faceDownCandidates = <String>[
-      for (final column in tableauColumns.values)
-        for (final id in column)
-          if (!cards.firstWhere((c) => c.id == id).isCategoryHeader) id,
-      ...stockCardIds,
-    ]..shuffle(random);
-    final faceDownCardIds = faceDownCandidates.take(faceDownTarget).toSet();
+    final categoryColumnIds = categories.map((c) => c.id).toList();
 
-    for (final column in tableauColumns.values) {
-      if (column.isNotEmpty) {
-        faceDownCardIds.remove(column.last);
+    // Remaining cards go to stock and waste piles
+    final remainingCards = allPlayableCards.skip(cardIndex).toList();
+    final wasteCount = min(2, max(1, remainingCards.length ~/ 6));
+    final stockCount = remainingCards.length - wasteCount;
+    final stockCardIds = remainingCards
+        .take(stockCount)
+        .map((card) => card.id)
+        .toList();
+    final wasteCardIds = remainingCards
+        .skip(stockCount)
+        .map((card) => card.id)
+        .toList();
+
+    // Face down cards: all stock cards + underlying cards in each tableau column (except top card)
+    final faceDownCardIds = Set<String>.from(stockCardIds);
+    for (final col in tableauColumns.values) {
+      if (col.length > 1) {
+        for (var i = 0; i < col.length - 1; i++) {
+          faceDownCardIds.add(col[i]);
+        }
       }
     }
-    for (final id in wasteCardIds) {
-      faceDownCardIds.remove(id);
-    }
 
-    final minMoves = playableCards.length + columnCount + 6;
+    final minMoves = allPlayableCards.length + columnCount + 8;
     final maxMoves = max(
       minMoves,
-      (playableCards.length * config.maxMovesMultiplier).round() + stockCount,
+      (allPlayableCards.length * config.maxMovesMultiplier).round() + stockCount,
     );
 
     return PuzzleData(

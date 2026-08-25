@@ -1,13 +1,7 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import '../../../../core/constants/game_colors.dart';
 
 class AnimatedStarRating extends StatefulWidget {
-  const AnimatedStarRating({
-    super.key,
-    required this.stars,
-    this.startDelay = const Duration(milliseconds: 300),
-  });
+  const AnimatedStarRating({super.key, required this.stars, this.startDelay = const Duration(milliseconds: 300)});
 
   final int stars; // 1-3
   final Duration startDelay;
@@ -16,8 +10,7 @@ class AnimatedStarRating extends StatefulWidget {
   State<AnimatedStarRating> createState() => _AnimatedStarRatingState();
 }
 
-class _AnimatedStarRatingState extends State<AnimatedStarRating>
-    with TickerProviderStateMixin {
+class _AnimatedStarRatingState extends State<AnimatedStarRating> with TickerProviderStateMixin {
   late final List<AnimationController> _controllers;
   late final List<Animation<double>> _scaleAnimations;
   late final List<Animation<double>> _rotationAnimations;
@@ -27,31 +20,24 @@ class _AnimatedStarRatingState extends State<AnimatedStarRating>
     super.initState();
     _controllers = List.generate(
       3,
-      (i) => AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 600),
-      ),
+      (i) => AnimationController(vsync: this, duration: const Duration(milliseconds: 600)),
     );
 
     _scaleAnimations = _controllers.map((c) {
       return TweenSequence<double>([
         TweenSequenceItem(
-          tween: Tween<double>(begin: 0.0, end: 1.35)
-              .chain(CurveTween(curve: Curves.easeOutBack)),
+          tween: Tween<double>(begin: 0.0, end: 1.35).chain(CurveTween(curve: Curves.easeOutBack)),
           weight: 65,
         ),
         TweenSequenceItem(
-          tween: Tween<double>(begin: 1.35, end: 1.0)
-              .chain(CurveTween(curve: Curves.easeInOut)),
+          tween: Tween<double>(begin: 1.35, end: 1.0).chain(CurveTween(curve: Curves.easeInOut)),
           weight: 35,
         ),
       ]).animate(c);
     }).toList();
 
     _rotationAnimations = _controllers.map((c) {
-      return Tween<double>(begin: -0.4, end: 0.0)
-          .chain(CurveTween(curve: Curves.easeOutBack))
-          .animate(c);
+      return Tween<double>(begin: -0.4, end: 0.0).chain(CurveTween(curve: Curves.easeOutBack)).animate(c);
     }).toList();
 
     _playSequence();
@@ -159,16 +145,8 @@ class _StarSlot extends StatelessWidget {
         alignment: Alignment.center,
         children: [
           // Empty background socket
-          Icon(
-            Icons.star_rounded,
-            size: size,
-            color: const Color(0xFF1E2822).withValues(alpha: 0.8),
-          ),
-          Icon(
-            Icons.star_outline_rounded,
-            size: size,
-            color: const Color(0xFFD4AF37).withValues(alpha: 0.3),
-          ),
+          Icon(Icons.star_rounded, size: size, color: const Color(0xFF1E2822).withValues(alpha: 0.8)),
+          Icon(Icons.star_outline_rounded, size: size, color: const Color(0xFFD4AF37).withValues(alpha: 0.3)),
           // Animated filled star
           if (isEarned)
             AnimatedBuilder(
@@ -205,27 +183,14 @@ class _StarSlot extends StatelessWidget {
                             return const LinearGradient(
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
-                              colors: [
-                                Color(0xFFFFFDE7),
-                                Color(0xFFFFEB3B),
-                                Color(0xFFFFB300),
-                                Color(0xFFFF8F00),
-                              ],
+                              colors: [Color(0xFFFFFDE7), Color(0xFFFFEB3B), Color(0xFFFFB300), Color(0xFFFF8F00)],
                               stops: [0.0, 0.35, 0.7, 1.0],
                             ).createShader(bounds);
                           },
-                          child: Icon(
-                            Icons.star_rounded,
-                            size: size,
-                            color: Colors.white,
-                          ),
+                          child: Icon(Icons.star_rounded, size: size, color: Colors.white),
                         ),
                         // Outer crisp golden bevel border
-                        Icon(
-                          Icons.star_outline_rounded,
-                          size: size,
-                          color: const Color(0xFFFFF9C4),
-                        ),
+                        Icon(Icons.star_outline_rounded, size: size, color: const Color(0xFFFFF9C4)),
                       ],
                     ),
                   ),
