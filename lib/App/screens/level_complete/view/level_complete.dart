@@ -15,16 +15,12 @@ class LevelComplete extends StatekitView<LevelCompleteController> implements Lev
       body: StateBuilder<LevelCompleteController>(
         controller: controller,
         builder: (context, controller, child) {
-          return Center(
-            child: Text("level complete"),
-          );
+          return Center(child: Text("level complete"));
         },
       ),
     );
   }
 
   @override
-  void doSomething() {
-    // TODO: implement doSomething
-  }
+  void doSomething() {}
 }

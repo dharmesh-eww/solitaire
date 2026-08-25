@@ -22,7 +22,9 @@ class AnimatingCardState {
 }
 
 class PlayScreenController extends StateController<PlayScreenBinding> {
-  final GameEngine engine = GameEngine.forLevel(3);
+  PlayScreenController({int level = 1}) : engine = GameEngine.forLevel(level);
+
+  final GameEngine engine;
 
   GameState get state => engine.state;
   int get level => state.puzzle.level;
@@ -33,6 +35,7 @@ class PlayScreenController extends StateController<PlayScreenBinding> {
 
   final Map<String, GlobalKey> cardKeys = {};
   final Map<int, GlobalKey> columnKeys = {};
+
 
   bool isPlayable(String cardId) => engine.isPlayable(cardId);
 

@@ -114,13 +114,13 @@ class PuzzleCardWidget extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          // Progress counter — top right
+          // Total card count for this category — top right
           if (categoryRequired > 0)
             Positioned(
               top: 5,
               right: 6,
               child: Text(
-                '$categoryProgress/$categoryRequired',
+                '$categoryRequired',
                 style: TextStyle(
                   color: GameColors.textDark.withValues(alpha: 0.75),
                   fontWeight: FontWeight.w800,

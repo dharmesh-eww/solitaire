@@ -7,9 +7,7 @@ import '../../play_screen/view/widgets/game_table_background.dart';
 import '../binding/home_screen_binding.dart';
 import '../controller/home_screen_controller.dart';
 
-// ignore: must_be_immutable
-class HomeScreen extends StatekitView<HomeScreenController>
-    implements HomeScreenBinding {
+class HomeScreen extends StatekitView<HomeScreenController> implements HomeScreenBinding {
   HomeScreen({super.key, super.tag});
 
   @override
@@ -28,16 +26,9 @@ class HomeScreen extends StatekitView<HomeScreenController>
                   return SingleChildScrollView(
                     physics: const ClampingScrollPhysics(),
                     child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minHeight: constraints.maxHeight,
-                      ),
+                      constraints: BoxConstraints(minHeight: constraints.maxHeight),
                       child: Padding(
-                        padding: EdgeInsets.fromLTRB(
-                          22,
-                          compact ? 18 : 28,
-                          22,
-                          18,
-                        ),
+                        padding: EdgeInsets.fromLTRB(22, compact ? 18 : 28, 22, 18),
                         child: Column(
                           children: [
                             _HomeHeader(width: width, onLevelsTap: controller.onLevelsTap),
@@ -65,7 +56,7 @@ class HomeScreen extends StatekitView<HomeScreenController>
 
   @override
   void onPlayPressed() {
-    Navigator.pushNamed(context, Routes.playScreen);
+    Navigator.pushNamed(context, Routes.playScreen, arguments: 1);
   }
 
   @override
@@ -93,29 +84,17 @@ class _HomeHeader extends StatelessWidget {
             borderRadius: BorderRadius.circular(22),
             border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
             boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.24),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
+              BoxShadow(color: Colors.black.withValues(alpha: 0.24), blurRadius: 8, offset: const Offset(0, 4)),
             ],
           ),
           child: const Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.monetization_on_rounded,
-                color: GameColors.coinGold,
-                size: 24,
-              ),
+              Icon(Icons.monetization_on_rounded, color: GameColors.coinGold, size: 24),
               SizedBox(width: 7),
               Text(
                 '566',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 18,
-                ),
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18),
               ),
               SizedBox(width: 8),
               _PlusDot(),
@@ -147,18 +126,12 @@ class _CardQuestLogo extends StatelessWidget {
               Positioned(
                 left: 18,
                 top: 18,
-                child: Transform.rotate(
-                  angle: -0.16,
-                  child: const _LogoCard(text: 'Word'),
-                ),
+                child: Transform.rotate(angle: -0.16, child: const _LogoCard(text: 'Word')),
               ),
               Positioned(
                 right: 18,
                 top: 12,
-                child: Transform.rotate(
-                  angle: 0.14,
-                  child: const _LogoCard(text: 'Quest', blue: true),
-                ),
+                child: Transform.rotate(angle: 0.14, child: const _LogoCard(text: 'Quest', blue: true)),
               ),
               Positioned(
                 bottom: 4,
@@ -169,16 +142,10 @@ class _CardQuestLogo extends StatelessWidget {
                     gradient: const LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [
-                        GameColors.categoryHeader,
-                        GameColors.categoryHeaderDark,
-                      ],
+                      colors: [GameColors.categoryHeader, GameColors.categoryHeaderDark],
                     ),
                     shape: BoxShape.circle,
-                    border: Border.all(
-                      color: const Color(0xFFFFF0A6),
-                      width: 3,
-                    ),
+                    border: Border.all(color: const Color(0xFFFFF0A6), width: 3),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.32),
@@ -187,11 +154,7 @@ class _CardQuestLogo extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: Icon(
-                    Icons.workspace_premium_rounded,
-                    color: const Color(0xFF5A3200),
-                    size: compact ? 34 : 40,
-                  ),
+                  child: Icon(Icons.workspace_premium_rounded, color: const Color(0xFF5A3200), size: compact ? 34 : 40),
                 ),
               ),
             ],
@@ -206,24 +169,14 @@ class _CardQuestLogo extends StatelessWidget {
             fontSize: 40,
             fontWeight: FontWeight.w900,
             height: 1,
-            shadows: [
-              Shadow(
-                color: Color(0x99000000),
-                blurRadius: 8,
-                offset: Offset(0, 3),
-              ),
-            ],
+            shadows: [Shadow(color: Color(0x99000000), blurRadius: 8, offset: Offset(0, 3))],
           ),
         ),
         const SizedBox(height: 7),
         Text(
           'Word Association Solitaire',
           textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.9),
-            fontSize: 15,
-            fontWeight: FontWeight.w800,
-          ),
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 15, fontWeight: FontWeight.w800),
         ),
       ],
     );
@@ -248,29 +201,16 @@ class _PreviewTableau extends StatelessWidget {
           Positioned(
             top: 10,
             left: 8,
-            child: _PreviewStack(
-              title: 'Museum',
-              words: const ['Display', 'Gallery'],
-              width: cardWidth,
-            ),
+            child: _PreviewStack(title: 'Museum', words: const ['Display', 'Gallery'], width: cardWidth),
           ),
           Positioned(
             top: 0,
-            child: _PreviewStack(
-              title: 'Seasons',
-              words: const ['Winter', 'Autumn'],
-              width: cardWidth,
-              active: true,
-            ),
+            child: _PreviewStack(title: 'Seasons', words: const ['Winter', 'Autumn'], width: cardWidth, active: true),
           ),
           Positioned(
             top: 10,
             right: 8,
-            child: _PreviewStack(
-              title: 'Writer',
-              words: const ['Twain', 'Dickens'],
-              width: cardWidth,
-            ),
+            child: _PreviewStack(title: 'Writer', words: const ['Twain', 'Dickens'], width: cardWidth),
           ),
         ],
       ),
@@ -279,12 +219,7 @@ class _PreviewTableau extends StatelessWidget {
 }
 
 class _PreviewStack extends StatelessWidget {
-  const _PreviewStack({
-    required this.title,
-    required this.words,
-    required this.width,
-    this.active = false,
-  });
+  const _PreviewStack({required this.title, required this.words, required this.width, this.active = false});
 
   final String title;
   final List<String> words;
@@ -310,11 +245,7 @@ class _PreviewStack extends StatelessWidget {
               top: 34 + i * width * 0.42,
               left: 0,
               right: 0,
-              child: _MiniCard(
-                text: words[i],
-                width: width,
-                highlighted: active && i == words.length - 1,
-              ),
+              child: _MiniCard(text: words[i], width: width, highlighted: active && i == words.length - 1),
             ),
         ],
       ),
@@ -377,13 +308,7 @@ class _PlayButtonState extends State<_PlayButton> {
                   color: Colors.white,
                   fontWeight: FontWeight.w900,
                   fontSize: 26,
-                  shadows: [
-                    Shadow(
-                      color: Color(0x77000000),
-                      blurRadius: 3,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
+                  shadows: [Shadow(color: Color(0x77000000), blurRadius: 3, offset: Offset(0, 2))],
                 ),
               ),
             ],
@@ -413,11 +338,7 @@ class _MetaStrip extends StatelessWidget {
           SizedBox(width: 8),
           Text(
             'Offline puzzles',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14),
           ),
         ],
       ),
@@ -443,11 +364,7 @@ class _RoundControl extends StatelessWidget {
           shape: BoxShape.circle,
           border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
           boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.28),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
+            BoxShadow(color: Colors.black.withValues(alpha: 0.28), blurRadius: 8, offset: const Offset(0, 4)),
           ],
         ),
         child: Icon(icon, color: Colors.white, size: 26),
@@ -471,17 +388,8 @@ class _LogoCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: blue ? GameColors.cardBack : GameColors.cardFace,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: blue ? const Color(0xFF7FB6FF) : GameColors.cardBorder,
-          width: 2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.28),
-            blurRadius: 8,
-            offset: const Offset(0, 5),
-          ),
-        ],
+        border: Border.all(color: blue ? const Color(0xFF7FB6FF) : GameColors.cardBorder, width: 2),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.28), blurRadius: 8, offset: const Offset(0, 5))],
       ),
       child: Text(
         text,
@@ -497,11 +405,7 @@ class _LogoCard extends StatelessWidget {
 }
 
 class _MiniCard extends StatelessWidget {
-  const _MiniCard({
-    required this.text,
-    required this.width,
-    this.highlighted = false,
-  });
+  const _MiniCard({required this.text, required this.width, this.highlighted = false});
 
   final String text;
   final double width;
@@ -518,9 +422,7 @@ class _MiniCard extends StatelessWidget {
         color: GameColors.cardFace,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: highlighted
-              ? GameColors.categoryActiveBorder
-              : GameColors.cardBorder,
+          color: highlighted ? GameColors.categoryActiveBorder : GameColors.cardBorder,
           width: highlighted ? 2.4 : 1.4,
         ),
         boxShadow: [
@@ -535,11 +437,7 @@ class _MiniCard extends StatelessWidget {
         text,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: const Color(0xFF3A210C),
-          fontWeight: FontWeight.w900,
-          fontSize: width * 0.16,
-        ),
+        style: TextStyle(color: const Color(0xFF3A210C), fontWeight: FontWeight.w900, fontSize: width * 0.16),
       ),
     );
   }
@@ -564,9 +462,7 @@ class _CategoryPill extends StatelessWidget {
         ),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: active
-              ? GameColors.categoryActiveBorder
-              : const Color(0xFFFFF0A6),
+          color: active ? GameColors.categoryActiveBorder : const Color(0xFFFFF0A6),
           width: active ? 2 : 1.2,
         ),
       ),
@@ -574,11 +470,7 @@ class _CategoryPill extends StatelessWidget {
         title,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          color: Color(0xFF3A210C),
-          fontWeight: FontWeight.w900,
-          fontSize: 13,
-        ),
+        style: const TextStyle(color: Color(0xFF3A210C), fontWeight: FontWeight.w900, fontSize: 13),
       ),
     );
   }
@@ -590,15 +482,8 @@ class _PlusDot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: const BoxDecoration(
-        color: GameColors.movesRibbon,
-        shape: BoxShape.circle,
-      ),
-      child: SizedBox(
-        width: 22,
-        height: 22,
-        child: Icon(Icons.add, color: Colors.white, size: 16),
-      ),
+      decoration: const BoxDecoration(color: GameColors.movesRibbon, shape: BoxShape.circle),
+      child: SizedBox(width: 22, height: 22, child: Icon(Icons.add, color: Colors.white, size: 16)),
     );
   }
 }

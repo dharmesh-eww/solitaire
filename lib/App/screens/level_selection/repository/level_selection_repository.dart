@@ -94,7 +94,7 @@ class LevelSelectionRepository {
       final difficulty = _getDifficultyForLevel(i);
       progress.add(LevelProgress(
         levelNumber: i,
-        isUnlocked: i == 1,
+        isUnlocked: true, // TODO: revert to `i == 1` when testing is done
         isCompleted: false,
         stars: 0,
         difficulty: difficulty,

@@ -19,10 +19,13 @@ abstract class RouteNavigator {
       stateProvider: StatekitProvider(create: () => HomeScreenController()),
       child: HomeScreen(),
     ),
-    Routes.playScreen: (BuildContext context) => StateProvider(
-      stateProvider: StatekitProvider(create: () => PlayScreenController()),
-      child: PlayScreen(),
-    ),
+    Routes.playScreen: (BuildContext context) {
+      final level = (ModalRoute.of(context)?.settings.arguments as int?) ?? 1;
+      return StateProvider(
+        stateProvider: StatekitProvider(create: () => PlayScreenController(level: level)),
+        child: PlayScreen(),
+      );
+    },
     Routes.levelSelection: (BuildContext context) => StateProvider(
       stateProvider: StatekitProvider(create: () => LevelSelectionController()),
       child: LevelSelection(),

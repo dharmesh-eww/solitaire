@@ -10,9 +10,7 @@ import 'widgets/game_table_background.dart';
 import 'widgets/moves_ribbon.dart';
 import 'widgets/puzzle_card_widget.dart';
 
-// ignore: must_be_immutable
-class PlayScreen extends StatekitView<PlayScreenController>
-    implements PlayScreenBinding {
+class PlayScreen extends StatekitView<PlayScreenController> implements PlayScreenBinding {
   PlayScreen({super.key, super.tag});
 
   @override
@@ -30,8 +28,7 @@ class PlayScreen extends StatekitView<PlayScreenController>
                       final width = constraints.maxWidth;
                       final columnGap = width < 380 ? 8.0 : 10.0;
                       final horizontalPadding = width < 380 ? 10.0 : 14.0;
-                      final cardWidth =
-                          (width - horizontalPadding * 2 - columnGap * 3) / 4;
+                      final cardWidth = (width - horizontalPadding * 2 - columnGap * 3) / 4;
                       final clampedCardWidth = cardWidth.clamp(72.0, 108.0);
 
                       return Stack(
@@ -49,9 +46,7 @@ class PlayScreen extends StatekitView<PlayScreenController>
                               ),
                               Expanded(
                                 child: Padding(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: horizontalPadding,
-                                  ),
+                                  padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
                                   child: _PlayBoard(
                                     controller: controller,
                                     cardWidth: clampedCardWidth,
@@ -64,23 +59,15 @@ class PlayScreen extends StatekitView<PlayScreenController>
                             ],
                           ),
                           // Moves ribbon — top left, overlaid
-                          Positioned(
-                            left: 0,
-                            top: 52,
-                            child: MovesRibbon(
-                              moves: controller.state.movesRemaining,
-                            ),
-                          ),
-                          if (controller.state.status != GameStatus.playing)
-                            _StatusOverlay(controller: controller),
+                          Positioned(left: 0, top: 52, child: MovesRibbon(moves: controller.state.movesRemaining)),
+                          if (controller.state.status != GameStatus.playing) _StatusOverlay(controller: controller),
                         ],
                       );
                     },
                   ),
                 ),
                 // Animation overlay (above SafeArea so it can go full screen)
-                if (controller.animatingCard != null)
-                  _AnimationOverlay(controller: controller),
+                if (controller.animatingCard != null) _AnimationOverlay(controller: controller),
               ],
             ),
           );
@@ -98,11 +85,7 @@ class PlayScreen extends StatekitView<PlayScreenController>
 // ─────────────────────────────────────────────────────────────
 
 class _PlayBoard extends StatelessWidget {
-  const _PlayBoard({
-    required this.controller,
-    required this.cardWidth,
-    required this.columnGap,
-  });
+  const _PlayBoard({required this.controller, required this.cardWidth, required this.columnGap});
 
   final PlayScreenController controller;
   final double cardWidth;
@@ -136,17 +119,12 @@ class _PlayBoard extends StatelessWidget {
         Expanded(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: cardWidth,
             children: [
               for (var i = 0; i < controller.state.columns.length; i++) ...[
                 Expanded(
-                  child: _CategoryColumn(
-                    controller: controller,
-                    columnIndex: i,
-                    cardWidth: cardWidth,
-                  ),
+                  child: CategoryColumn(controller: controller, columnIndex: i, cardWidth: cardWidth),
                 ),
-                if (i != controller.state.columns.length - 1)
-                  SizedBox(width: columnGap),
               ],
             ],
           ),
@@ -160,12 +138,8 @@ class _PlayBoard extends StatelessWidget {
 // Category Column
 // ─────────────────────────────────────────────────────────────
 
-class _CategoryColumn extends StatelessWidget {
-  const _CategoryColumn({
-    required this.controller,
-    required this.columnIndex,
-    required this.cardWidth,
-  });
+class CategoryColumn extends StatelessWidget {
+  const CategoryColumn({super.key, required this.controller, required this.columnIndex, required this.cardWidth});
 
   final PlayScreenController controller;
   final int columnIndex;
@@ -173,8 +147,7 @@ class _CategoryColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final columnKey = controller.columnKeys.putIfAbsent(
-        columnIndex, () => GlobalKey());
+    final columnKey = controller.columnKeys.putIfAbsent(columnIndex, () => GlobalKey());
     final state = controller.state;
     final category = state.puzzle.categories[columnIndex];
     final column = state.columns[columnIndex];
@@ -182,72 +155,36 @@ class _CategoryColumn extends StatelessWidget {
     final stackStep = cardHeight * 0.22;
 
     final isCompleted = state.completedCategories.contains(category.id);
-    final isActive = state.activeCategoryId == category.id ||
-        state.hintCategoryId == category.id;
+    final isActive = state.activeCategoryId == category.id || state.hintCategoryId == category.id;
 
-    final isDraggingCard = controller.draggingCardId != null;
-    final isValidDestination = isDraggingCard &&
-        controller.canDropOnColumn(controller.draggingCardId!, columnIndex);
-
-    // Selection-based highlight (tap mode)
-    final selectedCanDrop = state.selectedCardId != null &&
-        controller.canDropOnCategory(state.selectedCardId!, columnIndex);
+    // Selection-based highlight (tap mode only — no drag highlights)
+    final selectedCanDrop =
+        state.selectedCardId != null && controller.canDropOnCategory(state.selectedCardId!, columnIndex);
 
     return DragTarget<String>(
       key: columnKey,
-      onWillAcceptWithDetails: (details) =>
-          controller.canDropOnColumn(details.data, columnIndex),
-      onAcceptWithDetails: (details) =>
-          controller.onCardDropped(details.data, columnIndex, details.offset),
+      onWillAcceptWithDetails: (details) => controller.canDropOnColumn(details.data, columnIndex),
+      onAcceptWithDetails: (details) => controller.onCardDropped(details.data, columnIndex, details.offset),
       builder: (context, candidateData, rejectedData) {
-        final isHovering = candidateData.isNotEmpty;
-        final isEmptyStack = column.length <= 1;
-        final glowing = isActive || isHovering || selectedCanDrop;
-
-        // Border style logic
+        // Border / shadow — no drag-based highlighting
         BoxBorder border;
         List<BoxShadow>? shadows;
 
         if (isCompleted) {
           border = Border.all(color: GameColors.categoryCompletedBorder.withValues(alpha: 0.5), width: 1.5);
           shadows = null;
-        } else if (isValidDestination && isHovering) {
-          border = Border.all(
-            color: isEmptyStack ? GameColors.categoryActiveBorder : GameColors.dropValid,
-            width: 2.5,
-          );
+        } else if (selectedCanDrop) {
+          // Subtle glow only for tap-selected card
+          border = Border.all(color: GameColors.categoryActiveBorder.withValues(alpha: 0.5), width: 1.5);
+          shadows = [BoxShadow(color: GameColors.categoryActiveBorder.withValues(alpha: 0.2), blurRadius: 10)];
+        } else if (isActive) {
+          border = Border.all(color: Colors.transparent, width: 1.5);
           shadows = [
-            BoxShadow(
-              color: (isEmptyStack ? GameColors.categoryActiveBorder : GameColors.dropValid).withValues(alpha: 0.45),
-              blurRadius: 18,
-              spreadRadius: 2,
-            ),
+            BoxShadow(color: GameColors.categoryActiveBorder.withValues(alpha: 0.3), blurRadius: 16, spreadRadius: 1),
           ];
-        } else if (isValidDestination || selectedCanDrop) {
-          border = Border.all(
-            color: GameColors.categoryActiveBorder.withValues(alpha: 0.5),
-            width: 1.5,
-          );
-          shadows = [
-            BoxShadow(
-              color: GameColors.categoryActiveBorder.withValues(alpha: 0.2),
-              blurRadius: 10,
-            ),
-          ];
-        } else if (isDraggingCard && !isValidDestination && isHovering) {
-          border = Border.all(color: GameColors.dropInvalid.withValues(alpha: 0.35), width: 1.5);
-          shadows = null;
         } else {
           border = Border.all(color: Colors.transparent, width: 1.5);
-          shadows = glowing
-              ? [
-                  BoxShadow(
-                    color: GameColors.categoryActiveBorder.withValues(alpha: 0.3),
-                    blurRadius: 16,
-                    spreadRadius: 1,
-                  ),
-                ]
-              : null;
+          shadows = null;
         }
 
         return GestureDetector(
@@ -255,29 +192,31 @@ class _CategoryColumn extends StatelessWidget {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 160),
             curve: Curves.easeOut,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(13),
-              border: border,
-              boxShadow: shadows,
-            ),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(13), border: border, boxShadow: shadows),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // ── Category header card (index 0 in column = fixed header) ──
-                PuzzleCardWidget(
-                  card: column.isNotEmpty ? state.puzzle.cardById(column[0]) : null,
+                // ── Category header card — fixed cardWidth × cardHeight ──
+                SizedBox(
                   width: cardWidth,
-                  isFaceUp: true,
-                  isCategoryHeader: true,
-                  isActiveCategory: isActive,
-                  isCompleted: isCompleted,
-                  categoryProgress: state.categoryProgress[category.id] ?? 0,
-                  categoryRequired: category.requiredItemCount,
+                  height: cardHeight,
+                  child: PuzzleCardWidget(
+                    card: column.isNotEmpty ? state.puzzle.cardById(column[0]) : null,
+                    width: cardWidth,
+                    isFaceUp: true,
+                    isCategoryHeader: true,
+                    isActiveCategory: isActive,
+                    isCompleted: isCompleted,
+                    categoryProgress: state.categoryProgress[category.id] ?? 0,
+                    categoryRequired: category.requiredItemCount,
+                  ),
                 ),
-                // ── Stacked playable cards below the header ──
+                const SizedBox(height: 12),
+                // ── Stacked playable cards — same width, overlapping stack ──
                 if (column.length > 1)
                   SizedBox(
-                    height: cardHeight * 0.8 + stackStep * (column.length - 2) + stackStep,
+                    width: cardWidth,
+                    height: cardHeight + stackStep * (column.length - 2),
                     child: Stack(
                       clipBehavior: Clip.none,
                       children: [
@@ -289,7 +228,9 @@ class _CategoryColumn extends StatelessWidget {
                             top: (i - 1) * stackStep,
                             left: 0,
                             right: 0,
-                            child: Center(
+                            child: SizedBox(
+                              width: cardWidth,
+                              height: cardHeight,
                               child: _PlayableCard(
                                 controller: controller,
                                 cardId: column[i],
@@ -298,16 +239,7 @@ class _CategoryColumn extends StatelessWidget {
                               ),
                             ),
                           ),
-                        // Drop indicator ghost card on hover
-                        if (isValidDestination && isHovering && !isEmptyStack)
-                          Positioned(
-                            top: (column.length - 1) * stackStep,
-                            left: 0,
-                            right: 0,
-                            child: Center(
-                              child: _DropIndicator(cardWidth: cardWidth),
-                            ),
-                          ),
+                        // No drop indicator shown during drag
                       ],
                     ),
                   ),
@@ -324,8 +256,8 @@ class _CategoryColumn extends StatelessWidget {
 // Drop Indicator
 // ─────────────────────────────────────────────────────────────
 
-class _DropIndicator extends StatelessWidget {
-  const _DropIndicator({required this.cardWidth});
+class DropIndicator extends StatelessWidget {
+  const DropIndicator({super.key, required this.cardWidth});
 
   final double cardWidth;
 
@@ -337,27 +269,16 @@ class _DropIndicator extends StatelessWidget {
       decoration: BoxDecoration(
         color: GameColors.dropValid.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(11),
-        border: Border.all(
-          color: GameColors.dropValid.withValues(alpha: 0.65),
-          width: 1.8,
-        ),
+        border: Border.all(color: GameColors.dropValid.withValues(alpha: 0.65), width: 1.8),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
-            Icons.arrow_downward_rounded,
-            color: GameColors.dropValid,
-            size: 18,
-          ),
+          const Icon(Icons.arrow_downward_rounded, color: GameColors.dropValid, size: 18),
           const SizedBox(height: 2),
           Text(
             'DROP',
-            style: TextStyle(
-              color: GameColors.dropValid,
-              fontWeight: FontWeight.w900,
-              fontSize: cardWidth * 0.12,
-            ),
+            style: TextStyle(color: GameColors.dropValid, fontWeight: FontWeight.w900, fontSize: cardWidth * 0.12),
           ),
         ],
       ),
@@ -384,8 +305,7 @@ class _PlayableCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cardKey =
-        controller.cardKeys.putIfAbsent(cardId, () => GlobalKey());
+    final cardKey = controller.cardKeys.putIfAbsent(cardId, () => GlobalKey());
     final card = controller.state.puzzle.cardById(cardId);
     final faceUp = controller.isFaceUp(cardId);
     final playable = isTopCard && controller.isPlayable(cardId);
@@ -397,17 +317,17 @@ class _PlayableCard extends StatelessWidget {
         card: card,
         width: cardWidth,
         isFaceUp: faceUp,
-        isSelected:
-            controller.state.selectedCardId == cardId && !isHidden,
+        isSelected: controller.state.selectedCardId == cardId && !isHidden,
         isHintHighlighted: controller.state.hintCardId == cardId,
-        onTap: playable && !isHidden
-            ? () => controller.selectCard(cardId)
-            : null,
+        onTap: playable && !isHidden ? () => controller.selectCard(cardId) : null,
       ),
     );
 
     if (!playable || isHidden) {
-      return SizedBox(key: cardKey, child: IgnorePointer(child: child));
+      return SizedBox(
+        key: cardKey,
+        child: IgnorePointer(child: child),
+      );
     }
 
     return SizedBox(
@@ -419,12 +339,7 @@ class _PlayableCard extends StatelessWidget {
           color: Colors.transparent,
           child: Transform.rotate(
             angle: 0.04,
-            child: PuzzleCardWidget(
-              card: card,
-              width: cardWidth,
-              isFaceUp: true,
-              isDragging: true,
-            ),
+            child: PuzzleCardWidget(card: card, width: cardWidth, isFaceUp: true, isDragging: true),
           ),
         ),
         childWhenDragging: Opacity(opacity: 0.0, child: child),
@@ -432,8 +347,7 @@ class _PlayableCard extends StatelessWidget {
         onDragEnd: (_) {
           // Cleanup handled in onCardDropped or onDragCanceled
         },
-        onDraggableCanceled: (velocity, offset) =>
-            controller.onDragCanceled(cardId, offset),
+        onDraggableCanceled: (velocity, offset) => controller.onDragCanceled(cardId, offset),
         child: child,
       ),
     );
@@ -454,8 +368,7 @@ class _WasteFan extends StatelessWidget {
   Widget build(BuildContext context) {
     final waste = controller.state.waste;
     if (waste.isEmpty) return const SizedBox.shrink();
-    final visible =
-        waste.length <= 3 ? waste : waste.sublist(waste.length - 3);
+    final visible = waste.length <= 3 ? waste : waste.sublist(waste.length - 3);
 
     return SizedBox(
       height: cardWidth * 1.38,
@@ -506,11 +419,7 @@ class _StockPile extends StatelessWidget {
               offset: Offset(0, i * 2.0),
               child: Opacity(
                 opacity: count > i ? 1.0 : 0.2,
-                child: PuzzleCardWidget(
-                  card: null,
-                  width: cardWidth,
-                  isFaceUp: false,
-                ),
+                child: PuzzleCardWidget(card: null, width: cardWidth, isFaceUp: false),
               ),
             ),
           if (count > 0)
@@ -518,17 +427,11 @@ class _StockPile extends StatelessWidget {
               top: 5,
               right: 5,
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(10),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.2),
-                      blurRadius: 4,
-                    ),
-                  ],
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4)],
                 ),
                 child: Text(
                   '$count',
@@ -560,17 +463,14 @@ class _InstructionBar extends StatelessWidget {
     final activeId = controller.state.activeCategoryId;
     final hintId = controller.state.hintCategoryId;
     final showId = hintId ?? activeId;
-    final category = showId == null
-        ? null
-        : controller.state.puzzle.categoryById(showId);
+    final category = showId == null ? null : controller.state.puzzle.categoryById(showId);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       child: ClipPath(
         clipper: _ArrowBannerClipper(),
         child: Container(
-          padding:
-              const EdgeInsets.only(left: 14, right: 28, top: 10, bottom: 10),
+          padding: const EdgeInsets.only(left: 14, right: 28, top: 10, bottom: 10),
           color: GameColors.instructionBar,
           child: Row(
             children: [
@@ -578,15 +478,8 @@ class _InstructionBar extends StatelessWidget {
               Container(
                 width: 30,
                 height: 30,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF2E7D32),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.info_rounded,
-                  color: Colors.white,
-                  size: 18,
-                ),
+                decoration: const BoxDecoration(color: Color(0xFF2E7D32), shape: BoxShape.circle),
+                child: const Icon(Icons.info_rounded, color: Colors.white, size: 18),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -595,11 +488,7 @@ class _InstructionBar extends StatelessWidget {
                     children: [
                       const TextSpan(
                         text: 'Find all cards that belong to\n',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
                       ),
                       TextSpan(
                         text: category?.name ?? 'the categories',
@@ -614,11 +503,7 @@ class _InstructionBar extends StatelessWidget {
                           alignment: PlaceholderAlignment.middle,
                           child: Padding(
                             padding: const EdgeInsets.only(left: 4),
-                            child: Icon(
-                              Icons.workspace_premium_rounded,
-                              color: GameColors.crownGold,
-                              size: 16,
-                            ),
+                            child: Icon(Icons.workspace_premium_rounded, color: GameColors.crownGold, size: 16),
                           ),
                         ),
                     ],
@@ -748,10 +633,7 @@ class _ActionButton extends StatelessWidget {
             right: 2,
             child: Container(
               height: 58,
-              decoration: BoxDecoration(
-                color: bottomColor,
-                borderRadius: BorderRadius.circular(18),
-              ),
+              decoration: BoxDecoration(color: bottomColor, borderRadius: BorderRadius.circular(18)),
             ),
           ),
           // Main button
@@ -764,10 +646,7 @@ class _ActionButton extends StatelessWidget {
                 colors: [topColor, bottomColor],
               ),
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.22),
-                width: 1.2,
-              ),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.22), width: 1.2),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -791,9 +670,7 @@ class _ActionButton extends StatelessWidget {
             Positioned(
               right: -4,
               top: -6,
-              child: badgeIsCoin
-                  ? _CoinCountBadge(count: badge)
-                  : _RedCountBadge(count: badge),
+              child: badgeIsCoin ? _CoinCountBadge(count: badge) : _RedCountBadge(count: badge),
             ),
           // Play badge for shuffle — replaces the red count badge
           if (hasBadgePlay && badge > 0)
@@ -803,15 +680,8 @@ class _ActionButton extends StatelessWidget {
               child: Container(
                 width: 24,
                 height: 24,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.play_arrow_rounded,
-                  color: GameColors.shuffleOrange,
-                  size: 17,
-                ),
+                decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                child: const Icon(Icons.play_arrow_rounded, color: GameColors.shuffleOrange, size: 17),
               ),
             ),
         ],
@@ -833,21 +703,11 @@ class _RedCountBadge extends StatelessWidget {
         color: GameColors.badgeRed,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.white, width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4, offset: const Offset(0, 2))],
       ),
       child: Text(
         '$count',
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w900,
-          fontSize: 11,
-        ),
+        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 11),
       ),
     );
   }
@@ -866,13 +726,7 @@ class _CoinCountBadge extends StatelessWidget {
         color: GameColors.coinGold,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.white, width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4, offset: const Offset(0, 2))],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -881,11 +735,7 @@ class _CoinCountBadge extends StatelessWidget {
           const SizedBox(width: 2),
           Text(
             '$count',
-            style: const TextStyle(
-              color: Color(0xFF5C3A00),
-              fontWeight: FontWeight.w900,
-              fontSize: 11,
-            ),
+            style: const TextStyle(color: Color(0xFF5C3A00), fontWeight: FontWeight.w900, fontSize: 11),
           ),
         ],
       ),
@@ -916,11 +766,7 @@ class _StatusOverlay extends StatelessWidget {
             color: GameColors.cardFace,
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.45),
-                blurRadius: 28,
-                offset: const Offset(0, 12),
-              ),
+              BoxShadow(color: Colors.black.withValues(alpha: 0.45), blurRadius: 28, offset: const Offset(0, 12)),
             ],
           ),
           child: Column(
@@ -956,11 +802,7 @@ class _StatusOverlay extends StatelessWidget {
                     ? 'Level ${controller.level} cleared with ${controller.state.movesRemaining} moves left!'
                     : 'Undo a move or retry this puzzle.',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: GameColors.textMid,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
+                style: const TextStyle(color: GameColors.textMid, fontWeight: FontWeight.w600, fontSize: 14),
               ),
               const SizedBox(height: 20),
               Row(
@@ -993,12 +835,7 @@ class _StatusOverlay extends StatelessWidget {
 }
 
 class _DialogButton extends StatelessWidget {
-  const _DialogButton({
-    required this.label,
-    required this.onTap,
-    required this.topColor,
-    required this.bottomColor,
-  });
+  const _DialogButton({required this.label, required this.onTap, required this.topColor, required this.bottomColor});
 
   final String label;
   final VoidCallback onTap;
@@ -1019,21 +856,11 @@ class _DialogButton extends StatelessWidget {
             colors: [topColor, bottomColor],
           ),
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: bottomColor.withValues(alpha: 0.55),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          boxShadow: [BoxShadow(color: bottomColor.withValues(alpha: 0.55), blurRadius: 8, offset: const Offset(0, 4))],
         ),
         child: Text(
           label,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w900,
-            fontSize: 16,
-          ),
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16),
         ),
       ),
     );
@@ -1056,17 +883,12 @@ class _AnimationOverlay extends StatelessWidget {
         final width = constraints.maxWidth;
         final columnGap = width < 380 ? 8.0 : 10.0;
         final horizontalPadding = width < 380 ? 10.0 : 14.0;
-        final cardWidth =
-            (width - horizontalPadding * 2 - columnGap * 3) / 4;
+        final cardWidth = (width - horizontalPadding * 2 - columnGap * 3) / 4;
         final clampedCardWidth = cardWidth.clamp(72.0, 108.0);
 
         return Stack(
           children: [
-            CardAnimationWidget(
-              state: controller.animatingCard!,
-              cardWidth: clampedCardWidth,
-              controller: controller,
-            ),
+            CardAnimationWidget(state: controller.animatingCard!, cardWidth: clampedCardWidth, controller: controller),
           ],
         );
       },
@@ -1083,19 +905,13 @@ class CardAnimationWidget extends StatefulWidget {
   final double cardWidth;
   final PlayScreenController controller;
 
-  const CardAnimationWidget({
-    super.key,
-    required this.state,
-    required this.cardWidth,
-    required this.controller,
-  });
+  const CardAnimationWidget({super.key, required this.state, required this.cardWidth, required this.controller});
 
   @override
   State<CardAnimationWidget> createState() => _CardAnimationWidgetState();
 }
 
-class _CardAnimationWidgetState extends State<CardAnimationWidget>
-    with SingleTickerProviderStateMixin {
+class _CardAnimationWidgetState extends State<CardAnimationWidget> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<Offset> _positionAnimation;
   late Animation<double> _shakeAnimation;
@@ -1105,46 +921,37 @@ class _CardAnimationWidgetState extends State<CardAnimationWidget>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 240),
-      vsync: this,
-    );
+    _controller = AnimationController(duration: const Duration(milliseconds: 240), vsync: this);
 
     _positionAnimation = Tween<Offset>(
       begin: widget.state.startOffset,
       end: widget.state.endOffset,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOutCubic,
-    ));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
 
     _scaleAnimation = Tween<double>(
       begin: widget.state.isShake ? 1.06 : 1.03,
       end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOutCubic,
-    ));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
 
     _rotationAnimation = Tween<double>(
       begin: widget.state.isShake ? 0.04 : 0.02,
       end: 0.0,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOutCubic,
-    ));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
 
     if (widget.state.isShake) {
-      _shakeAnimation = TweenSequence<double>([
-        TweenSequenceItem(tween: Tween(begin: 0.0, end: 10.0), weight: 1),
-        TweenSequenceItem(tween: Tween(begin: 10.0, end: -10.0), weight: 2),
-        TweenSequenceItem(tween: Tween(begin: -10.0, end: 6.0), weight: 2),
-        TweenSequenceItem(tween: Tween(begin: 6.0, end: -6.0), weight: 2),
-        TweenSequenceItem(tween: Tween(begin: -6.0, end: 0.0), weight: 1),
-      ]).animate(CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.0, 0.5, curve: Curves.linear),
-      ));
+      _shakeAnimation =
+          TweenSequence<double>([
+            TweenSequenceItem(tween: Tween(begin: 0.0, end: 10.0), weight: 1),
+            TweenSequenceItem(tween: Tween(begin: 10.0, end: -10.0), weight: 2),
+            TweenSequenceItem(tween: Tween(begin: -10.0, end: 6.0), weight: 2),
+            TweenSequenceItem(tween: Tween(begin: 6.0, end: -6.0), weight: 2),
+            TweenSequenceItem(tween: Tween(begin: -6.0, end: 0.0), weight: 1),
+          ]).animate(
+            CurvedAnimation(
+              parent: _controller,
+              curve: const Interval(0.0, 0.5, curve: Curves.linear),
+            ),
+          );
     } else {
       _shakeAnimation = const AlwaysStoppedAnimation(0.0);
     }

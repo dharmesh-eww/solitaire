@@ -20,7 +20,15 @@ class GameEngine {
   bool isPlayable(String cardId) {
     if (!isInteractive) return false;
     final card = puzzle.cardById(cardId);
-    if (card == null || card.isCategoryHeader) return false;
+    if (card == null) return false;
+    // Distractor cards can never be played
+    if (card.isDistractor) return false;
+    // Category header cards that are already fixed at column[0] are never moveable.
+    // But a header card sitting in the waste CAN be played (it acts as a "cap").
+    if (card.isCategoryHeader) {
+      // Only playable when it is the top of the waste pile
+      return state.waste.isNotEmpty && state.waste.last == cardId;
+    }
     if (!isFaceUp(cardId)) return false;
 
     final location = locateCard(cardId);
@@ -33,6 +41,8 @@ class GameEngine {
         return false;
       case CardZone.tableau:
         final column = state.columns[location.columnIndex!];
+        // The header card fixed at column[0] is never moveable from the tableau
+        if (column.isNotEmpty && column[0] == cardId) return false;
         return column.isNotEmpty && column.last == cardId;
     }
   }
@@ -80,18 +90,32 @@ class GameEngine {
     required PuzzleCard card,
     required List<String> destinationStack,
   }) {
-    if (card.isCategoryHeader || card.isDistractor) return false;
+    if (card.isDistractor) return false;
 
-    // If destination stack is empty of playable cards (only category header card at index 0)
+    // The fixed header at column[0] is never a destination for playable cards —
+    // only the playable area (index 1+) is considered here.
+
+    // If the top card in the playable area is a category-header "cap" card,
+    // the stack is locked — nothing can be placed on top of it.
+    if (destinationStack.length > 1) {
+      final topId = destinationStack.last;
+      final topCard = puzzle.cardById(topId);
+      if (topCard != null && topCard.isCategoryHeader) return false;
+    }
+
+    // Empty playable area (only the fixed header at index 0):
+    // any non-distractor card may be placed here.
     if (destinationStack.length <= 1) {
       return true;
     }
 
-    final topPlayableId = destinationStack[1];
-    final topPlayableCard = puzzle.cardById(topPlayableId);
-    if (topPlayableCard == null) return false;
+    // Non-empty playable area: the card must belong to the same category
+    // as the card at index 1 (the first card placed in this stack).
+    final firstPlayableId = destinationStack[1];
+    final firstPlayableCard = puzzle.cardById(firstPlayableId);
+    if (firstPlayableCard == null) return false;
 
-    return card.categoryId == topPlayableCard.categoryId;
+    return card.categoryId == firstPlayableCard.categoryId;
   }
 
   bool canDropOnColumn(String cardId, int columnIndex) {

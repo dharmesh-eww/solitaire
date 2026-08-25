@@ -62,12 +62,7 @@ class LevelSelectionController extends StateController<LevelSelectionBinding> {
   void onLevelTap(int levelNumber) {
     final progress = _levelProgress[levelNumber - 1];
     if (progress.isUnlocked) {
-      if (levelNumber == _currentLevel) {
-        // Start game immediately for current level
-        binding?.navigateToPlay(levelNumber);
-      } else {
-        // Show level preview for completed levels - handled in UI
-      }
+      binding?.navigateToPlay(levelNumber);
     }
   }
 

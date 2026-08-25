@@ -41,7 +41,7 @@ class LevelSelection extends StatekitView<LevelSelectionController> implements L
 
   @override
   void navigateToPlay(int levelNumber) {
-    Navigator.pushNamed(context, Routes.playScreen);
+    Navigator.pushNamed(context, Routes.playScreen, arguments: levelNumber);
   }
 
   @override
