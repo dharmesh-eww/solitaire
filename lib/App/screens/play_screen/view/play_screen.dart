@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:statekit/statekit.dart';
 
 import '../../../core/constants/game_colors.dart';
+import '../../../routes/app_routes.dart';
+import '../../level_complete/controller/level_complete_controller.dart';
+import '../../level_complete/model/level_complete_data.dart';
+import '../../level_complete/view/level_complete.dart';
 import '../binding/play_screen_binding.dart';
 import '../controller/play_screen_controller.dart';
 import '../model/card_location.dart';
@@ -60,7 +64,7 @@ class PlayScreen extends StatekitView<PlayScreenController> implements PlayScree
                           ),
                           // Moves ribbon — top left, overlaid
                           Positioned(left: 0, top: 52, child: MovesRibbon(moves: controller.state.movesRemaining)),
-                          if (controller.state.status != GameStatus.playing) _StatusOverlay(controller: controller),
+                          if (controller.state.status == GameStatus.outOfMoves) _StatusOverlay(controller: controller),
                         ],
                       );
                     },
@@ -77,7 +81,26 @@ class PlayScreen extends StatekitView<PlayScreenController> implements PlayScree
   }
 
   @override
-  void doSomething() {}
+  void onLevelCompleted(LevelCompleteData data) {
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        settings: RouteSettings(name: Routes.levelComplete, arguments: data),
+        pageBuilder: (context, animation, secondaryAnimation) => StateProvider(
+          stateProvider: StatekitProvider(create: () => LevelCompleteController(data: data)),
+          child: LevelComplete(),
+        ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+          return FadeTransition(
+            opacity: animation,
+            child: ScaleTransition(scale: Tween<double>(begin: 0.88, end: 1.0).animate(curved), child: child),
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 600),
+      ),
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -156,10 +179,6 @@ class CategoryColumn extends StatelessWidget {
 
     final isCompleted = state.completedCategories.contains(category.id);
     final isActive = state.activeCategoryId == category.id || state.hintCategoryId == category.id;
-
-    // Selection-based highlight (tap mode only — no drag highlights)
-    final selectedCanDrop =
-        state.selectedCardId != null && controller.canDropOnCategory(state.selectedCardId!, columnIndex);
 
     return DragTarget<String>(
       key: columnKey,

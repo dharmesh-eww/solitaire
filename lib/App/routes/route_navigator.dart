@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:solitaire/App/screens/level_complete/model/level_complete_data.dart';
 import 'package:statekit/statekit.dart';
 
 import './app_routes.dart';
@@ -30,9 +31,12 @@ abstract class RouteNavigator {
       stateProvider: StatekitProvider(create: () => LevelSelectionController()),
       child: LevelSelection(),
     ),
-    Routes.levelComplete: (BuildContext context) => StateProvider(
-      stateProvider: StatekitProvider(create: () => LevelCompleteController()),
-      child: LevelComplete(),
-    ),
+    Routes.levelComplete: (BuildContext context) {
+      final data = ModalRoute.of(context)?.settings.arguments as LevelCompleteData?;
+      return StateProvider(
+        stateProvider: StatekitProvider(create: () => LevelCompleteController(data: data)),
+        child: LevelComplete(),
+      );
+    },
   };
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:statekit/statekit.dart';
+import '../../level_complete/model/level_complete_data.dart';
 import '../binding/play_screen_binding.dart';
 import '../engine/game_engine.dart';
 import '../model/game_state.dart';
@@ -32,10 +33,10 @@ class PlayScreenController extends StateController<PlayScreenBinding> {
   String? draggingCardId;
   String? hiddenCardId;
   AnimatingCardState? animatingCard;
+  bool _hasTriggeredWin = false;
 
   final Map<String, GlobalKey> cardKeys = {};
   final Map<int, GlobalKey> columnKeys = {};
-
 
   bool isPlayable(String cardId) => engine.isPlayable(cardId);
 
@@ -56,12 +57,48 @@ class PlayScreenController extends StateController<PlayScreenBinding> {
 
   void tapCategory(int columnIndex) {
     engine.tapCategory(columnIndex);
+    _checkGameWin();
     update();
   }
 
   void moveCardToCategory(String cardId, int columnIndex) {
     engine.moveCardToCategory(cardId, columnIndex, consumeMove: true);
+    _checkGameWin();
     update();
+  }
+
+  void _checkGameWin() {
+    if (state.status == GameStatus.won && !_hasTriggeredWin) {
+      _hasTriggeredWin = true;
+      final maxMoves = state.puzzle.maxMoves;
+      final remaining = state.movesRemaining;
+      final used = (maxMoves - remaining).clamp(0, maxMoves);
+
+      int stars = 1;
+      if (remaining >= (maxMoves * 0.35).round()) {
+        stars = 3;
+      } else if (remaining >= (maxMoves * 0.15).round()) {
+        stars = 2;
+      }
+
+      final coinsReward = 50 + (stars * 25) + (remaining * 2);
+
+      final data = LevelCompleteData(
+        levelNumber: level,
+        stars: stars,
+        movesUsed: used,
+        movesRemaining: remaining,
+        coinsReward: coinsReward,
+        nextLevel: level + 1,
+        bestStars: stars,
+        isNewBest: true,
+      );
+
+      // Brief delay so final card animation settles smoothly before transitioning
+      Future.delayed(const Duration(milliseconds: 650), () {
+        binding?.onLevelCompleted(data);
+      });
+    }
   }
 
   void onDragStart(String cardId) {
@@ -204,6 +241,7 @@ class PlayScreenController extends StateController<PlayScreenBinding> {
   }
 
   void retryLevel() {
+    _hasTriggeredWin = false;
     engine.retryLevel();
     update();
   }
