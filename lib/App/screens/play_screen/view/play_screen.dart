@@ -119,12 +119,12 @@ class _PlayBoard extends StatelessWidget {
         Expanded(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
-            spacing: cardWidth,
             children: [
               for (var i = 0; i < controller.state.columns.length; i++) ...[
                 Expanded(
                   child: CategoryColumn(controller: controller, columnIndex: i, cardWidth: cardWidth),
                 ),
+                if (i != controller.state.columns.length - 1) SizedBox(width: columnGap),
               ],
             ],
           ),
@@ -166,33 +166,11 @@ class CategoryColumn extends StatelessWidget {
       onWillAcceptWithDetails: (details) => controller.canDropOnColumn(details.data, columnIndex),
       onAcceptWithDetails: (details) => controller.onCardDropped(details.data, columnIndex, details.offset),
       builder: (context, candidateData, rejectedData) {
-        // Border / shadow — no drag-based highlighting
-        BoxBorder border;
-        List<BoxShadow>? shadows;
-
-        if (isCompleted) {
-          border = Border.all(color: GameColors.categoryCompletedBorder.withValues(alpha: 0.5), width: 1.5);
-          shadows = null;
-        } else if (selectedCanDrop) {
-          // Subtle glow only for tap-selected card
-          border = Border.all(color: GameColors.categoryActiveBorder.withValues(alpha: 0.5), width: 1.5);
-          shadows = [BoxShadow(color: GameColors.categoryActiveBorder.withValues(alpha: 0.2), blurRadius: 10)];
-        } else if (isActive) {
-          border = Border.all(color: Colors.transparent, width: 1.5);
-          shadows = [
-            BoxShadow(color: GameColors.categoryActiveBorder.withValues(alpha: 0.3), blurRadius: 16, spreadRadius: 1),
-          ];
-        } else {
-          border = Border.all(color: Colors.transparent, width: 1.5);
-          shadows = null;
-        }
-
         return GestureDetector(
           onTap: () => controller.tapCategory(columnIndex),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 160),
             curve: Curves.easeOut,
-            decoration: BoxDecoration(borderRadius: BorderRadius.circular(13), border: border, boxShadow: shadows),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
